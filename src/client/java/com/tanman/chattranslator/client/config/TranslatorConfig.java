@@ -30,6 +30,13 @@ public final class TranslatorConfig {
     /** Manual target language code when {@link #auto} is false. */
     public String targetLanguage = null;
 
+    /**
+     * When true, incoming foreign chat is translated as it arrives and the English is
+     * appended to the line. Only applies when no download is needed — an uncached
+     * on-device pair still waits for a hover. Default on.
+     */
+    public boolean autoTranslateIncoming = true;
+
     /** Translation backend tier. */
     public TranslationBackendType backend = TranslationBackendType.ON_DEVICE;
 

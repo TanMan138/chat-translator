@@ -2,6 +2,9 @@ package com.tanman.chattranslator.client.command;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.tanman.chattranslator.client.ChatTranslatorServices;
+import com.tanman.chattranslator.client.config.CloudProvider;
+import com.tanman.chattranslator.client.config.TranslationBackendType;
+import com.tanman.chattranslator.client.config.TranslatorConfig;
 import com.tanman.chattranslator.client.guide.GuideScreen;
 import com.tanman.chattranslator.client.guide.PlayerGuide;
 import com.tanman.chattranslator.client.state.TranslationState;
@@ -60,6 +63,42 @@ public class TranslateCommand {
                                                 + "If chat fails, switch back with /translate latin."));
                                 return 1;
                             }))
+                    .then(ClientCommands.literal("read")
+                            .executes(ctx -> {
+                                ctx.getSource().sendFeedback(Component.literal(
+                                        "Reading mode: " + readModeLabel() + ".\n"
+                                                + "/translate read auto — English is added to foreign "
+                                                + "lines automatically\n"
+                                                + "/translate read hover — only when you hover a line"));
+                                return 1;
+                            })
+                            .then(ClientCommands.literal("auto")
+                                    .executes(ctx -> setReadMode(ctx.getSource(), true)))
+                            .then(ClientCommands.literal("hover")
+                                    .executes(ctx -> setReadMode(ctx.getSource(), false))))
+                    .then(ClientCommands.literal("backend")
+                            .executes(ctx -> {
+                                ctx.getSource().sendFeedback(Component.literal(backendHelp()));
+                                return 1;
+                            })
+                            .then(ClientCommands.argument("name", StringArgumentType.word())
+                                    .executes(ctx -> setBackend(
+                                            ctx.getSource(),
+                                            StringArgumentType.getString(ctx, "name")
+                                                    .toLowerCase(Locale.ROOT)))))
+                    .then(ClientCommands.literal("download")
+                            .executes(ctx -> {
+                                ctx.getSource().sendFeedback(Component.literal(
+                                        "Usage: /translate download <langcode> — saves that "
+                                                + "language now so chat translates instantly later."));
+                                return 1;
+                            })
+                            .then(ClientCommands.argument("langcode", StringArgumentType.word())
+                                    .executes(ctx -> download(
+                                            ctx.getSource(),
+                                            modelManager,
+                                            StringArgumentType.getString(ctx, "langcode")
+                                                    .toLowerCase(Locale.ROOT)))))
                     .then(ClientCommands.literal("auto")
                             .executes(ctx -> {
                                 state.setAuto();
@@ -88,8 +127,9 @@ public class TranslateCommand {
                                 if (keys.isEmpty()) {
                                     ctx.getSource().sendFeedback(Component.literal(
                                             "No language files saved yet.\n"
-                                                    + "They download automatically when you hover-read chat "
-                                                    + "(if you use \"On your computer\" mode)."));
+                                                    + "Hover a foreign chat line, or run "
+                                                    + "/translate download <code>, to save one "
+                                                    + "(\"On your computer\" mode only)."));
                                     return 1;
                                 }
                                 StringBuilder sb = new StringBuilder("Saved language files (")
@@ -156,7 +196,123 @@ public class TranslateCommand {
         return lang.equals("latin") || lang.equals("native")
                 || lang.equals("auto") || lang.equals("help")
                 || lang.equals("guide") || lang.equals("status")
-                || lang.equals("models") || lang.equals("clear");
+                || lang.equals("models") || lang.equals("clear")
+                || lang.equals("read") || lang.equals("backend")
+                || lang.equals("download");
+    }
+
+    private static String readModeLabel() {
+        if (!ChatTranslatorServices.ready()) {
+            return "still loading";
+        }
+        return ChatTranslatorServices.config().autoTranslateIncoming ? "auto" : "hover";
+    }
+
+    private static int setReadMode(FabricClientCommandSource source, boolean auto) {
+        if (!ChatTranslatorServices.ready()) {
+            source.sendFeedback(Component.literal("Chat Translator is still loading."));
+            return 0;
+        }
+        TranslatorConfig config = ChatTranslatorServices.config();
+        config.autoTranslateIncoming = auto;
+        config.save();
+        source.sendFeedback(Component.literal(auto
+                ? "Reading mode: auto.\n"
+                + "Foreign chat now shows English on the same line.\n"
+                + "Languages that are not saved yet still need one hover to download."
+                : "Reading mode: hover.\n"
+                + "Chat is left alone until you hover a line."));
+        return 1;
+    }
+
+    private static String backendHelp() {
+        StringBuilder sb = new StringBuilder("Translation method: ");
+        sb.append(ChatTranslatorServices.ready()
+                        ? PlayerGuide.backendLabel(ChatTranslatorServices.config())
+                        : "still loading")
+                .append("\nChange with /translate backend <name>:\n");
+        for (String name : BACKEND_NAMES) {
+            sb.append("  ").append(name).append('\n');
+        }
+        sb.append("API keys and the Ollama address live in config/chat-translator.json "
+                + "(or Mods → Chat Translator → Config with Mod Menu + YACL).");
+        return sb.toString();
+    }
+
+    private static final List<String> BACKEND_NAMES =
+            List.of("ondevice", "deepl", "google", "langbly", "ollama");
+
+    private static int setBackend(FabricClientCommandSource source, String name) {
+        if (!ChatTranslatorServices.ready()) {
+            source.sendFeedback(Component.literal("Chat Translator is still loading."));
+            return 0;
+        }
+        TranslatorConfig config = ChatTranslatorServices.config();
+        switch (name) {
+            case "ondevice", "local", "computer" -> config.backend = TranslationBackendType.ON_DEVICE;
+            case "deepl" -> {
+                config.backend = TranslationBackendType.MANAGED_CLOUD;
+                config.cloudProvider = CloudProvider.DEEPL;
+            }
+            case "google" -> {
+                config.backend = TranslationBackendType.MANAGED_CLOUD;
+                config.cloudProvider = CloudProvider.GOOGLE;
+            }
+            case "langbly" -> {
+                config.backend = TranslationBackendType.MANAGED_CLOUD;
+                config.cloudProvider = CloudProvider.LANGBLY;
+            }
+            case "ollama", "custom", "server" -> config.backend = TranslationBackendType.CUSTOM;
+            default -> {
+                source.sendFeedback(Component.literal(
+                        "Unknown method \"" + name + "\". Options: "
+                                + String.join(", ", BACKEND_NAMES)));
+                return 0;
+            }
+        }
+        config.save();
+        ChatTranslatorServices.translationService().clearCache();
+        source.sendFeedback(Component.literal(
+                "Translation method: " + PlayerGuide.backendLabel(config) + "."));
+        return 1;
+    }
+
+    /**
+     * Fetches both directions for a language up front, so the first foreign line in
+     * chat translates immediately instead of waiting on a ~100 MB download.
+     */
+    private static int download(
+            FabricClientCommandSource source, ModelManager modelManager, String lang) {
+        if (!ChatTranslatorServices.ready()) {
+            source.sendFeedback(Component.literal("Chat Translator is still loading."));
+            return 0;
+        }
+        if (!lang.matches("[a-z]{2,3}")) {
+            source.sendFeedback(Component.literal(
+                    "That doesn't look like a language code. Try /translate download ru"));
+            return 0;
+        }
+
+        int started = 0;
+        for (String[] pair : new String[][] {{lang, "en"}, {"en", lang}}) {
+            if (modelManager.isCached(pair[0], pair[1])) {
+                source.sendFeedback(Component.literal(
+                        pair[0] + "-" + pair[1] + " is already saved."));
+                continue;
+            }
+            if (!ChatTranslatorServices.translationService().prewarm(pair[0], pair[1])) {
+                source.sendFeedback(Component.literal(
+                        "Your translation method is online, so nothing needs downloading."));
+                return 1;
+            }
+            started++;
+        }
+        if (started > 0) {
+            source.sendFeedback(Component.literal(
+                    "Downloading " + lang + " in the background — progress shows in chat. "
+                            + "You can keep playing."));
+        }
+        return 1;
     }
 
     private static int clearModels(

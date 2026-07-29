@@ -18,25 +18,28 @@ public final class PlayerGuide {
             new Page("What Chat Translator does",
                     """
                     This mod helps you read and send chat in other languages.
-                    
-                    Reading: foreign chat stays on screen. Press T, hover a line, and English \
-                    appears in the tooltip.
-                    
+
+                    Reading: foreign chat gets its English added to the same line, \
+                    as it arrives. Nothing to press.
+
                     Sending (optional): type in English and the mod can translate your message \
                     before it is sent — if you turn that on in settings.
-                    
+
                     Open this guide anytime: /translate guide
                     Or: Mods → Chat Translator → Config → Start here."""),
             new Page("How to read chat",
                     """
-                    Step 1: Press T to open chat.
-                    Step 2: Move your mouse over a message you want in English.
-                    Step 3: Wait a moment — English shows in the hover tooltip.
-                    
-                    First time for a language may download a small language pack \
-                    (only if you use "On your computer" mode).
-                    
-                    Clicking the line also works, but hovering is enough."""),
+                    Normally you do nothing: a foreign line shows up as
+                      <Alice> bonjour tout le monde → hello everyone
+
+                    A language you have never used needs its files once. Press T, hover \
+                    that line, and the download starts (progress shows in chat). After \
+                    that the language is instant and works offline.
+
+                    Want it ready in advance? /translate download fr
+                    Want the old hover-only behaviour? /translate read hover
+
+                    (Downloads only happen in "On your computer" mode.)"""),
             new Page("How to send translated chat",
                     """
                     Step 1: Pick who you are talking to.
@@ -90,41 +93,48 @@ public final class PlayerGuide {
                       → Not wired into this mod. Use On your computer, DeepL, or Google instead."""),
             new Page("Commands (quick list)",
                     """
-                    /translate guide     — open this full guide
-                    /translate help      — short cheat sheet in chat
-                    /translate status    — what mode you are in now
-                    /translate ru        — send outgoing chat in Russian (example)
-                    /translate auto      — follow last language you read
-                    /translate latin     — send romanized letters (default, safest)
-                    /translate native    — send real foreign letters
-                    /translate models    — list downloaded language packs
-                    /translate clear all — delete saved downloads
-                    
+                    /translate guide       — open this full guide
+                    /translate help        — short cheat sheet in chat
+                    /translate status      — what mode you are in now
+                    /translate ru          — send outgoing chat in Russian (example)
+                    /translate auto        — follow last language you read
+                    /translate read auto   — translate incoming chat as it arrives
+                    /translate read hover  — translate only lines you hover
+                    /translate download ru — save a language now
+                    /translate backend deepl — switch translation method
+                    /translate latin       — send romanized letters (default, safest)
+                    /translate native      — send real foreign letters
+                    /translate models      — list downloaded language packs
+                    /translate clear all   — delete saved downloads
+
                     Protect a word from translation: hello {{Steve}}"""),
             new Page("Tips",
                     """
-                    • New player? Leave "On your computer" and Latin letters on. \
-                    Hover chat to read; use /translate <code> only if you want to reply.
-                    
+                    • New player? Leave everything on default. Chat translates itself; \
+                    use /translate <code> only if you want to reply in another language.
+
                     • Messages blocked by the server? Try /translate latin.
-                    
+
                     • API keys live in config/chat-translator.json — do not share that file.
-                    
-                    • Full settings: Mods → Chat Translator → Config (needs Mod Menu + YACL).""")
+
+                    • Mod Menu + YACL are optional. Without them, every setting still \
+                    has a /translate command.""")
     };
 
     public static final String START_HERE_BLURB = """
-            Hover chat (press T) to read English. Optional: translate what you send.
+            Foreign chat translates itself into English on the same line. Optional: \
+            translate what you send.
             Most players: leave "On your computer" selected. Open the full guide below \
             for step-by-step help and how to use DeepL, Google, or your own server.""";
 
     public static final String HELP_CHEAT_SHEET = """
             Chat Translator — quick help
-            Read: press T, hover a line → English on tooltip
+            Read: foreign chat shows English automatically; hover a new language once to save it
             Send: /translate <code> then type English (e.g. /translate ru)
             /translate guide — full guide  |  /translate status — current settings
+            /translate read hover — only translate what you hover
+            /translate download ru — save a language now
             /translate latin — safe letters (default)  |  /translate native — real script
-            Config: Mods → Chat Translator → Config
             Common codes: fr French, de German, es Spanish, ru Russian, ja Japanese""";
 
     private PlayerGuide() {
@@ -160,6 +170,9 @@ public final class PlayerGuide {
                 ? "Latin letters (e.g. Privet — safest on public servers)"
                 : "real foreign letters (may be blocked on some servers)";
         return "Translation method: " + backendLabel(config)
+                + "\nReading chat: " + (config.autoTranslateIncoming
+                        ? "automatic — English is added to foreign lines"
+                        : "hover only — /translate read auto to change")
                 + "\nOutgoing language: " + language
                 + "\nOutgoing style: " + script
                 + "\nSaved downloads: " + modelManager.formatTotalSize()

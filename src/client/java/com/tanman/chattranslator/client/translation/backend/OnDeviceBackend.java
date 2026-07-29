@@ -21,7 +21,14 @@ import java.util.concurrent.TimeoutException;
  */
 public final class OnDeviceBackend implements TranslationBackend {
 
-    private static final long DOWNLOAD_TIMEOUT_SECONDS = 60;
+    /**
+     * A pair is ~100 MB over four files. 60s was shorter than the download itself on
+     * ordinary connections, so the first translation reported failure — and three of
+     * those blacklisted the pair for the session even though the fetch was fine.
+     * Callers already apply their own (shorter) timeout for what the player waits on;
+     * this one only bounds a genuinely stuck transfer.
+     */
+    private static final long DOWNLOAD_TIMEOUT_SECONDS = 15 * 60;
 
     private static final Set<String> FAILED_PAIRS = ConcurrentHashMap.newKeySet();
     private static final Map<String, CompletableFuture<DownloadOutcome>> IN_FLIGHT_DOWNLOADS =
@@ -44,6 +51,12 @@ public final class OnDeviceBackend implements TranslationBackend {
     @Override
     public boolean requiresModelDownload() {
         return true;
+    }
+
+    /** True when the pair is already on disk, so translating needs no network. */
+    public boolean isCached(String sourceLang, String targetLang) {
+        return !FAILED_PAIRS.contains(modelManager.pairKey(sourceLang, targetLang))
+                && modelManager.isCached(sourceLang, targetLang);
     }
 
     @Override
@@ -82,8 +95,14 @@ public final class OnDeviceBackend implements TranslationBackend {
             Path modelDir,
             String pairKey
     ) {
+        Download download = inFlightDownload(sourceLang, targetLang, modelDir, pairKey);
+        if (!download.started()) {
+            // Someone is already fetching this pair and streaming progress to chat.
+            // Waiting here too would just park another thread for the whole download.
+            return false;
+        }
         try {
-            DownloadOutcome outcome = inFlightDownload(sourceLang, targetLang, modelDir, pairKey)
+            DownloadOutcome outcome = download.future()
                     .get(DOWNLOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (outcome != null && outcome.ok()) {
                 return true;
@@ -100,7 +119,19 @@ public final class OnDeviceBackend implements TranslationBackend {
         return false;
     }
 
-    private CompletableFuture<DownloadOutcome> inFlightDownload(
+    /** A pair download plus whether this caller is the one that kicked it off. */
+    private record Download(CompletableFuture<DownloadOutcome> future, boolean started) {
+    }
+
+    /** Starts the model download for a pair, or joins the one already running. */
+    public void prewarm(String sourceLang, String targetLang) {
+        String pairKey = modelManager.pairKey(sourceLang, targetLang);
+        FAILED_PAIRS.remove(pairKey);
+        inFlightDownload(sourceLang, targetLang,
+                modelManager.modelDir(sourceLang, targetLang), pairKey);
+    }
+
+    private Download inFlightDownload(
             String sourceLang,
             String targetLang,
             Path modelDir,
@@ -131,6 +162,6 @@ public final class OnDeviceBackend implements TranslationBackend {
                 }
             });
         }
-        return download;
+        return new Download(download, started[0]);
     }
 }

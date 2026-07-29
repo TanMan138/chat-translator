@@ -1,6 +1,7 @@
 package com.tanman.chattranslator.client.event;
 
 import com.tanman.chattranslator.ChatTranslator;
+import com.tanman.chattranslator.client.config.TranslatorConfig;
 import com.tanman.chattranslator.client.state.TranslationState;
 import com.tanman.chattranslator.client.translation.LanguageDetector;
 import com.tanman.chattranslator.client.translation.ProtectedSpans;
@@ -8,6 +9,7 @@ import com.tanman.chattranslator.client.translation.TranslationResult;
 import com.tanman.chattranslator.client.translation.backend.TranslationService;
 
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
@@ -28,16 +30,26 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Incoming chat stays as-is until the player opens chat and <strong>hovers</strong>
- * (or clicks) a line. That keeps the model cache from bloating on every lobby message.
+ * Two ways to read foreign chat:
+ *
+ * <ul>
+ *   <li><b>Auto</b> (default): a line the mod can already translate — remote backend,
+ *       or an on-device pair that is on disk — gets its English appended inline.
+ *       Nothing is downloaded on its own, so joining a busy server never triggers a
+ *       surprise ~100 MB fetch.</li>
+ *   <li><b>Hover</b>: hovering (or clicking) a line translates it on demand, which is
+ *       also what downloads a pair the first time.</li>
+ * </ul>
  *
  * <p>Tooltips are resolved live via {@link #liveTooltip} because Minecraft bakes
- * {@link net.minecraft.network.chat.Style} into chat line buffers at add-time.
+ * {@link net.minecraft.network.chat.Style} into chat line buffers at add-time. Inline
+ * text has the same problem, so appending is followed by a chat rescale.
  */
 public final class IncomingChatHandler {
 
@@ -74,6 +86,7 @@ public final class IncomingChatHandler {
     private static volatile TranslationState state;
     private static volatile LanguageDetector detector;
     private static volatile TranslationService translationService;
+    private static volatile TranslatorConfig config;
 
     private enum Status {
         READY,
@@ -85,7 +98,9 @@ public final class IncomingChatHandler {
             MutableComponent display,
             String body,
             AtomicReference<Status> status,
-            AtomicReference<String> tooltip
+            AtomicReference<String> tooltip,
+            /** True while the current run started by itself rather than from a hover. */
+            AtomicBoolean auto
     ) {
     }
 
@@ -95,17 +110,20 @@ public final class IncomingChatHandler {
     public static void register(
             TranslationState translationState,
             LanguageDetector languageDetector,
-            TranslationService service
+            TranslationService service,
+            TranslatorConfig translatorConfig
     ) {
         state = translationState;
         detector = languageDetector;
         translationService = service;
+        config = translatorConfig;
 
         ClientReceiveMessageEvents.MODIFY_GAME.register((message, overlay) -> {
             if (overlay) {
                 return message;
             }
-            return prepare(message.copy(), splitSenderPrefix(message.getString()).body());
+            String rendered = message.getString();
+            return prepare(message.copy(), splitSenderPrefix(rendered).body(), rendered);
         });
 
         ClientReceiveMessageEvents.ALLOW_CHAT.register(
@@ -113,7 +131,7 @@ public final class IncomingChatHandler {
                     try {
                         MutableComponent display = message.copy();
                         String body = signedMessage.signedBody().content();
-                        prepare(display, body);
+                        display = prepare(display, body, message.getString());
 
                         Minecraft minecraft = Minecraft.getInstance();
                         if (minecraft.gui != null) {
@@ -162,6 +180,8 @@ public final class IncomingChatHandler {
         if (!pending.status().compareAndSet(Status.READY, Status.RUNNING)) {
             return true;
         }
+        // A hover is an explicit request: it may download a model, unlike an auto run.
+        pending.auto().set(false);
         pending.tooltip().set("Translating…");
         WORKER.execute(() -> process(pending));
         return true;
@@ -178,24 +198,55 @@ public final class IncomingChatHandler {
         return stringTag.value();
     }
 
-    private static MutableComponent prepare(MutableComponent display, String body) {
-        if (body == null || body.isBlank()) {
+    private static MutableComponent prepare(MutableComponent display, String body, String rendered) {
+        if (!IncomingMessageFilter.shouldOffer(rendered, body, selfName())) {
             return display;
         }
 
         String id = UUID.randomUUID().toString();
         trimPendingIfNeeded();
+
+        // Wrapper so an auto-translation can be appended later: the chat bakes a line
+        // into render buffers when it is added, and only a rescale re-reads the
+        // component — but it re-reads this same instance, siblings included.
+        MutableComponent holder = Component.empty().append(display);
         Pending pending = new Pending(
-                display,
+                holder,
                 body,
                 new AtomicReference<>(Status.READY),
-                new AtomicReference<>(HINT));
+                new AtomicReference<>(HINT),
+                new AtomicBoolean(false));
         PENDING.put(id, pending);
 
-        display.setStyle(display.getStyle()
+        holder.setStyle(holder.getStyle()
                 .withHoverEvent(new HoverEvent.ShowText(Component.literal(HINT)))
                 .withClickEvent(new ClickEvent.Custom(CLICK_ID, Optional.of(StringTag.valueOf(id)))));
-        return display;
+
+        maybeStartAuto(pending);
+        return holder;
+    }
+
+    /**
+     * Starts translation without waiting for a hover, but only when the player asked
+     * for auto mode. {@code process} still bails out if the backend would have to
+     * download a model first.
+     */
+    private static void maybeStartAuto(Pending pending) {
+        if (config == null || !config.autoTranslateIncoming) {
+            return;
+        }
+        if (!pending.status().compareAndSet(Status.READY, Status.RUNNING)) {
+            return;
+        }
+        pending.auto().set(true);
+        WORKER.execute(() -> process(pending));
+    }
+
+    private static String selfName() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return minecraft == null || minecraft.getUser() == null
+                ? null
+                : minecraft.getUser().getName();
     }
 
     private static void trimPendingIfNeeded() {
@@ -214,26 +265,40 @@ public final class IncomingChatHandler {
     /** Runs entirely on {@link #WORKER}. Must never throw into the executor. */
     private static void process(Pending pending) {
         String body = pending.body();
+        boolean auto = pending.auto().get();
         try {
             ProtectedSpans.Masked masked = ProtectedSpans.mask(body);
             Optional<String> detected = detector.detect(ProtectedSpans.unwrap(body));
             if (detected.isEmpty()) {
-                finish(pending, "Couldn't detect a language (English or too short).");
+                give(pending, "Couldn't detect a language (English or too short).");
                 return;
             }
             String sourceLanguage = detected.get();
 
-            runOnClientThread(() -> state.onLanguageDetected(sourceLanguage));
+            // Only an explicit hover retargets outgoing chat — otherwise every passing
+            // lobby message would change the language the player replies in.
+            if (!auto) {
+                runOnClientThread(() -> state.onLanguageDetected(sourceLanguage));
+            }
 
             if (translationService.requiresModelDownload()) {
                 String pairKey = pairKey(sourceLanguage, TARGET_LANGUAGE);
                 if (FAILED_PAIRS.contains(pairKey)) {
-                    finish(pending, "No translation model for " + sourceLanguage + ".");
+                    give(pending, "No translation model for " + sourceLanguage + ".");
                     return;
                 }
             }
 
-            pending.tooltip().set("Running translation…");
+            if (auto && !translationService.canTranslateWithoutDownload(
+                    sourceLanguage, TARGET_LANGUAGE)) {
+                // Auto mode never starts a download by itself; hovering does.
+                resetForHover(pending);
+                return;
+            }
+
+            if (!auto) {
+                pending.tooltip().set("Running translation…");
+            }
 
             long timeoutSeconds = translationService.isRemoteBackend()
                     ? REMOTE_TIMEOUT_SECONDS
@@ -247,7 +312,7 @@ public final class IncomingChatHandler {
                 if (translationService.requiresModelDownload()) {
                     noteTranslationFailure(pairKey(sourceLanguage, TARGET_LANGUAGE), sourceLanguage);
                 }
-                finish(pending, "Translation failed.");
+                give(pending, "Translation failed.");
                 return;
             }
             if (translationService.requiresModelDownload()) {
@@ -257,17 +322,57 @@ public final class IncomingChatHandler {
             String english = masked.restore(result.translatedText());
             if (english.isBlank()
                     || english.equals(ProtectedSpans.unwrap(result.originalText()))) {
-                finish(pending, "Nothing to translate.");
+                give(pending, "Nothing to translate.");
                 return;
             }
 
-            finish(pending, english);
+            if (auto) {
+                appendInline(pending, english);
+            } else {
+                finish(pending, english);
+            }
         } catch (TimeoutException timeout) {
-            finish(pending, "Translation timed out.");
+            give(pending, "Translation timed out.");
         } catch (Exception error) {
             ChatTranslator.LOGGER.warn("Failed to translate incoming message", error);
-            finish(pending, "Translation error — see log.");
+            give(pending, "Translation error — see log.");
         }
+    }
+
+    /**
+     * Report a non-result: a hover gets the reason in its tooltip, an auto run goes
+     * quiet and leaves the line hoverable so the player can ask for it explicitly.
+     */
+    private static void give(Pending pending, String reason) {
+        if (pending.auto().get()) {
+            resetForHover(pending);
+        } else {
+            finish(pending, reason);
+        }
+    }
+
+    private static void resetForHover(Pending pending) {
+        pending.auto().set(false);
+        pending.tooltip().set(HINT);
+        pending.status().set(Status.READY);
+    }
+
+    /**
+     * Shows the English after the original text instead of replacing it — that keeps
+     * the sender's name, colours, and formatting intact.
+     */
+    private static void appendInline(Pending pending, String english) {
+        pending.tooltip().set("Original: " + pending.body());
+        pending.status().set(Status.DONE);
+        runOnClientThread(() -> {
+            pending.display().append(Component.literal(" → " + english)
+                    .withStyle(ChatFormatting.GRAY));
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft != null && minecraft.gui != null) {
+                // Lines are wrapped into render buffers when added; this re-reads them.
+                minecraft.gui.getChat().rescaleChat();
+            }
+        });
     }
 
     private static String pairKey(String source, String target) {

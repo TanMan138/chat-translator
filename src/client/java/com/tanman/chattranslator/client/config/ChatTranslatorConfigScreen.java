@@ -45,6 +45,7 @@ public final class ChatTranslatorConfigScreen {
                     config.save();
                 })
                 .category(buildStartHereCategory(parent))
+                .category(buildWhatYouReadCategory(config))
                 .category(buildHowToTranslateCategory(config))
                 .category(buildOnlineServicesCategory(config))
                 .category(buildYourServerCategory(config))
@@ -66,6 +67,29 @@ public final class ChatTranslatorConfigScreen {
                                         + "Click to open the step-by-step guide with pros/cons "
                                         + "of each method and a command list.")))
                         .action(screen -> GuideScreen.open(screen))
+                        .build())
+                .build();
+    }
+
+    private static ConfigCategory buildWhatYouReadCategory(TranslatorConfig config) {
+        return ConfigCategory.createBuilder()
+                .name(Component.literal("What you read"))
+                .tooltip(Component.literal(
+                        "Controls incoming chat only — what other players say to you."))
+                .option(Option.<Boolean>createBuilder()
+                        .name(Component.literal("Translate chat automatically"))
+                        .description(OptionDescription.of(Component.literal(
+                                "On (recommended): English is added to foreign chat lines as they "
+                                        + "arrive, so you do not have to hover anything.\n"
+                                        + "A language that is not saved yet still needs one hover "
+                                        + "(or /translate download <code>) to fetch it first — "
+                                        + "nothing large downloads on its own.\n"
+                                        + "Off: chat is untouched until you hover a line.")))
+                        .binding(
+                                true,
+                                () -> config.autoTranslateIncoming,
+                                value -> config.autoTranslateIncoming = value)
+                        .controller(TickBoxControllerBuilder::create)
                         .build())
                 .build();
     }

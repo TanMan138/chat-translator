@@ -84,7 +84,9 @@ dependencies {
 	compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
 	localRuntime "com.terraformersmc:modmenu:${project.modmenu_version}"
 
-	// YACL is a hard runtime dependency (see fabric.mod.json); compileOnly + localRuntime for dev.
+	// YACL is optional at runtime (see fabric.mod.json "recommends"): ModMenuIntegration
+	// only touches ChatTranslatorConfigScreen when the mod is loaded, so a player can
+	// install this jar alone and configure everything through /translate commands.
 	compileOnly "dev.isxander:yet-another-config-lib:${project.yacl_version}"
 	localRuntime "dev.isxander:yet-another-config-lib:${project.yacl_version}"
 

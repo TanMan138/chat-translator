@@ -38,7 +38,7 @@ public class ChatTranslatorClient implements ClientModInitializer {
 
 		ChatTranslatorServices.init(state, modelManager, translator, config, translationService);
 
-		IncomingChatHandler.register(state, detector, translationService);
+		IncomingChatHandler.register(state, detector, translationService, config);
 		OutgoingChatHandler.register(state, modelManager, downloader, translator, translationService, config);
 		TranslateCommand.register(state, modelManager, translator);
 	}
