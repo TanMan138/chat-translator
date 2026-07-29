@@ -1,0 +1,85 @@
+# Builds the mod and publishes a GitHub Release whenever a v* tag is pushed.
+#
+#   git tag v1.1.0 && git push origin v1.1.0
+#
+# The tag drives the jar version (-Pmod_version), so gradle.properties does not have
+# to be edited for a release. Release notes come from the matching CHANGELOG.md
+# section when one exists.
+
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (without the leading v)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+
+      - name: resolve version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            version="$INPUT_VERSION"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          # Both sources end up in a shell command and a file path below, so refuse
+          # anything that is not a plain version string.
+          case "$version" in
+            *[!0-9.a-zA-Z-]*|'') echo "Bad version: $version" >&2; exit 1 ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: build
+        run: ./gradlew build -Pmod_version=${{ steps.version.outputs.version }}
+
+      - name: extract release notes
+        id: notes
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          # Pull the "## [version]" block out of CHANGELOG.md, if it is there.
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { grab = 1; next }
+            grab && /^## \[/ { exit }
+            grab { print }
+          ' CHANGELOG.md > release-notes.md || true
+          if [ ! -s release-notes.md ]; then
+            echo "Chat Translator $version for Minecraft 26.1.2 (Fabric)." > release-notes.md
+          fi
+
+      - name: publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title "Chat Translator ${{ steps.version.outputs.version }}" \
+            --notes-file release-notes.md \
+            build/libs/chat-translator-${{ steps.version.outputs.version }}.jar

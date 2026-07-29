@@ -2,13 +2,25 @@
 
 A Fabric mod that helps you **read** foreign chat in English and optionally **send** translated replies.
 
+## Download
+
+Grab the latest jar from the [**Releases**](https://github.com/TanMan138/chat-translator/releases/latest) page and drop it in your `mods/` folder. That is the whole install — no other mods required.
+
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
+
 ## Getting Started
 
 ### Read chat (everyone)
 
-1. Press **T** to open chat.
-2. **Hover** your mouse over a message you want in English.
-3. Wait a moment — English appears in the tooltip.
+Foreign chat is translated as it arrives — the English is added to the end of the line:
+
+```
+<Alice> bonjour tout le monde → hello everyone
+```
+
+A language you have never used yet needs its files once. Hover the line (or run `/translate download fr`) and it downloads in the background; after that it is instant and offline.
+
+Prefer the old behaviour? `/translate read hover` translates only lines you hover.
 
 No setup needed for most players. Leave the default **“On your computer”** method in settings.
 
@@ -49,6 +61,9 @@ No setup needed for most players. Leave the default **“On your computer”** m
 | `/translate status` | See your current settings |
 | `/translate ru` | Send outgoing chat in Russian (example) |
 | `/translate auto` | Follow the last language you read |
+| `/translate read auto` \| `hover` | Translate chat as it arrives, or only on hover |
+| `/translate download ru` | Save a language now instead of waiting |
+| `/translate backend deepl` | Switch translation method |
 | `/translate latin` | Send romanized letters (default, safest) |
 | `/translate native` | Send real foreign letters |
 
@@ -70,8 +85,9 @@ No setup needed for most players. Leave the default **“On your computer”** m
 - Fabric Loader 0.19.3+
 - Fabric API 0.155.2+26.1.2
 - Java 25
-- **[Yet Another Config Lib (YACL)](https://modrinth.com/mod/yacl) 3.9.1+** for MC 26.1
-- (optional) [Mod Menu](https://modrinth.com/mod/modmenu) 18.x for a config button
+- (optional) [Yet Another Config Lib (YACL)](https://modrinth.com/mod/yacl) 3.9.1+ and [Mod Menu](https://modrinth.com/mod/modmenu) 18.x for the settings screen
+
+Without YACL and Mod Menu the mod still works fully — every setting has a `/translate` command, and API keys can be edited in `config/chat-translator.json`.
 
 ## Advanced (for builders)
 
@@ -93,6 +109,9 @@ No setup needed for most players. Leave the default **“On your computer”** m
 | `/translate auto` | Follow detected language |
 | `/translate status` | Mode, method, script, cache |
 | `/translate latin` / `native` | Outgoing script style |
+| `/translate read auto\|hover` | Incoming chat: translate on arrival, or on hover |
+| `/translate download <langcode>` | Fetch both directions for a language now |
+| `/translate backend <name>` | `ondevice`, `deepl`, `google`, `langbly`, `ollama` |
 | `/translate models` | List cached language pairs |
 | `/translate clear <en-ru\|ru\|all>` | Delete cached models |
 
@@ -101,6 +120,7 @@ Not every language code has a published on-device model. Missing pairs return HT
 ### Config categories (YACL)
 
 - **Start here** — summary + open full guide
+- **What you read** — translate incoming chat automatically or on hover
 - **How to translate** — on computer / online / your server
 - **Online services** — DeepL, Google, or Langbly keys
 - **Your own server** — Ollama URL and model
@@ -113,12 +133,25 @@ Not every language code has a published on-device model. Missing pairs return HT
 ./gradlew build
 ```
 
-Output jar: `build/libs/chat-translator-1.0.0.jar`
+Output jar: `build/libs/chat-translator-1.1.0.jar`
 
 ```bash
 ./gradlew runClient    # dev client
 ./gradlew clientTest   # unit tests
 ```
+
+### Cutting a release
+
+Releases are built by [`.github/workflows/release.yml`](.github/workflows/release.yml): pushing a `v*` tag builds the jar with that version and publishes a GitHub Release with it attached.
+
+```bash
+# 1. add a "## [1.2.0]" section to CHANGELOG.md and commit it
+# 2. tag and push
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+The tag supplies `-Pmod_version`, so `gradle.properties` does not have to match. Release notes are taken from the matching `CHANGELOG.md` section. `workflow_dispatch` can also build a version manually.
 
 ## License
 
