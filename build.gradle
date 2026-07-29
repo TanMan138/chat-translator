@@ -60,6 +60,19 @@ dependencies {
 	runtimeOnly include("com.microsoft.onnxruntime:onnxruntime:1.21.1")
 	implementation include("ai.djl.huggingface:tokenizers:${project.djl_version}")
 	implementation include("com.github.pemistahl:lingua:${project.lingua_version}")
+	// Lingua is written in Kotlin and uses Moshi/Okio for its bundled language-model
+	// JSON data — none of these are provided by Minecraft/Fabric's own dependencies
+	// (unlike e.g. gson, jna, fastutil, commons-io, which the game already bundles and
+	// don't need to be duplicated here), so they must be included explicitly too.
+	implementation include("org.jetbrains.kotlin:kotlin-stdlib:1.6.21")
+	implementation include("org.jetbrains.kotlin:kotlin-stdlib-common:1.6.21")
+	implementation include("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.6.0")
+	implementation include("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.0")
+	implementation include("org.jetbrains.kotlin:kotlin-reflect:1.6.0")
+	implementation include("org.jetbrains:annotations:13.0")
+	implementation include("com.squareup.moshi:moshi:1.13.0")
+	implementation include("com.squareup.moshi:moshi-kotlin:1.13.0")
+	implementation include("com.squareup.okio:okio:2.10.0")
 
 	clientTestImplementation "org.junit.jupiter:junit-jupiter:${project.junit_version}"
 	clientTestRuntimeOnly "org.junit.platform:junit-platform-launcher"
