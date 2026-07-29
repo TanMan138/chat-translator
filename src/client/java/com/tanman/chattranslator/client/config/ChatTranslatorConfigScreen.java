@@ -1,6 +1,8 @@
 package com.tanman.chattranslator.client.config;
 
 import com.tanman.chattranslator.client.ChatTranslatorServices;
+import com.tanman.chattranslator.client.guide.GuideScreen;
+import com.tanman.chattranslator.client.guide.PlayerGuide;
 import com.tanman.chattranslator.client.state.TranslationState;
 import com.tanman.chattranslator.client.translation.ModelManager;
 import com.tanman.chattranslator.client.translation.Translator;
@@ -20,7 +22,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * YACL config screen: backend tier, cloud keys, Ollama endpoint, outgoing prefs, cache.
+ * YACL config screen with beginner-friendly labels and a link to the full guide.
  */
 public final class ChatTranslatorConfigScreen {
 
@@ -42,27 +44,44 @@ public final class ChatTranslatorConfigScreen {
                     config.captureFrom(state);
                     config.save();
                 })
-                .category(buildBackendCategory(config))
-                .category(buildCloudCategory(config))
-                .category(buildCustomCategory(config))
-                .category(buildOutgoingCategory(config, state))
-                .category(buildOnDeviceCategory(config))
+                .category(buildStartHereCategory(parent))
+                .category(buildHowToTranslateCategory(config))
+                .category(buildOnlineServicesCategory(config))
+                .category(buildYourServerCategory(config))
+                .category(buildWhatYouSendCategory(config, state))
+                .category(buildSavedDownloadsCategory())
                 .build()
                 .generateScreen(parent);
     }
 
-    private static ConfigCategory buildBackendCategory(TranslatorConfig config) {
+    private static ConfigCategory buildStartHereCategory(Screen parent) {
         return ConfigCategory.createBuilder()
-                .name(Component.literal("Backend"))
+                .name(Component.literal("Start here"))
                 .tooltip(Component.literal(
-                        "Choose how chat is translated: local ONNX models, a cloud API you provide keys for, "
-                                + "or a self-hosted Ollama instance."))
-                .option(Option.<TranslationBackendType>createBuilder()
-                        .name(Component.literal("Translation backend"))
+                        "New to this mod? Read this first, then open the full step-by-step guide."))
+                .option(ButtonOption.createBuilder()
+                        .name(Component.literal("Open full guide"))
                         .description(OptionDescription.of(Component.literal(
-                                "On-Device: OPUS-MT/ONNX (default, offline after download).\n"
-                                        + "Managed Cloud: DeepL or Google Translate v2 (BYOK).\n"
-                                        + "Custom: Ollama /api/generate endpoint.")))
+                                PlayerGuide.START_HERE_BLURB + "\n\n"
+                                        + "Click to open the step-by-step guide with pros/cons "
+                                        + "of each method and a command list.")))
+                        .action(screen -> GuideScreen.open(screen))
+                        .build())
+                .build();
+    }
+
+    private static ConfigCategory buildHowToTranslateCategory(TranslatorConfig config) {
+        return ConfigCategory.createBuilder()
+                .name(Component.literal("How to translate"))
+                .tooltip(Component.literal(
+                        "Choose where translation happens. Most players should use "
+                                + "\"On your computer\" — no account needed."))
+                .option(Option.<TranslationBackendType>createBuilder()
+                        .name(Component.literal("Translation method"))
+                        .description(OptionDescription.of(Component.literal(
+                                "On your computer: downloads small language files once, then works offline.\n"
+                                        + "Online service: you paste an API key from DeepL or Google.\n"
+                                        + "Your own server: for players who run Ollama on a PC or VPS.")))
                         .binding(
                                 TranslationBackendType.ON_DEVICE,
                                 () -> config.backend,
@@ -74,17 +93,20 @@ public final class ChatTranslatorConfigScreen {
                 .build();
     }
 
-    private static ConfigCategory buildCloudCategory(TranslatorConfig config) {
+    private static ConfigCategory buildOnlineServicesCategory(TranslatorConfig config) {
         return ConfigCategory.createBuilder()
-                .name(Component.literal("Managed Cloud"))
-                .tooltip(Component.literal("DeepL or Google Cloud Translation API v2. Keys stored in config/chat-translator.json."))
+                .name(Component.literal("Online services"))
+                .tooltip(Component.literal(
+                        "Only needed if you picked \"Online service\" above. "
+                                + "You must create an account and copy your API key here."))
                 .group(OptionGroup.createBuilder()
-                        .name(Component.literal("Provider"))
+                        .name(Component.literal("Which service?"))
                         .option(Option.<CloudProvider>createBuilder()
-                                .name(Component.literal("Cloud provider"))
+                                .name(Component.literal("Pick DeepL or Google"))
                                 .description(OptionDescription.of(Component.literal(
-                                        "DeepL: form POST /v2/translate.\n"
-                                                + "Google: Cloud Translation API v2 REST.")))
+                                        "DeepL: sign up at deepl.com and copy your API key.\n"
+                                                + "Google: use a Google Cloud Translation key. "
+                                                + "Langbly users: pick Google and paste the key Langbly gave you.")))
                                 .binding(
                                         CloudProvider.DEEPL,
                                         () -> config.cloudProvider,
@@ -95,28 +117,34 @@ public final class ChatTranslatorConfigScreen {
                                 .build())
                         .build())
                 .group(OptionGroup.createBuilder()
-                        .name(Component.literal("DeepL"))
+                        .name(Component.literal("DeepL setup"))
                         .option(Option.<String>createBuilder()
                                 .name(Component.literal("DeepL API key"))
                                 .description(OptionDescription.of(Component.literal(
-                                        "Your DeepL API key. Free keys use api-free.deepl.com.")))
+                                        "Step 1: Create a free or paid account at deepl.com.\n"
+                                                + "Step 2: Copy your API key from their website.\n"
+                                                + "Step 3: Paste it here. Leave \"free API\" on for free keys.")))
                                 .binding("", () -> config.deeplApiKey, value -> config.deeplApiKey = value)
                                 .controller(StringControllerBuilder::create)
                                 .build())
                         .option(Option.<Boolean>createBuilder()
-                                .name(Component.literal("Use DeepL Free API"))
+                                .name(Component.literal("I have a free DeepL key"))
                                 .description(OptionDescription.of(Component.literal(
-                                        "When enabled, uses api-free.deepl.com. Disable for Pro keys.")))
+                                        "Turn this on if you signed up for DeepL's free plan. "
+                                                + "Turn off if you pay for DeepL Pro.")))
                                 .binding(true, () -> config.deeplUseFreeApi, value -> config.deeplUseFreeApi = value)
                                 .controller(TickBoxControllerBuilder::create)
                                 .build())
                         .build())
                 .group(OptionGroup.createBuilder()
-                        .name(Component.literal("Google Translate"))
+                        .name(Component.literal("Google setup"))
                         .option(Option.<String>createBuilder()
                                 .name(Component.literal("Google API key"))
                                 .description(OptionDescription.of(Component.literal(
-                                        "Google Cloud Translation API v2 key (covers Langbly-style BYOK).")))
+                                        "Step 1: Get a Google Cloud Translation API key "
+                                                + "(or use a key from Langbly or similar).\n"
+                                                + "Step 2: Paste it here.\n"
+                                                + "Needs internet every time you translate.")))
                                 .binding("", () -> config.googleApiKey, value -> config.googleApiKey = value)
                                 .controller(StringControllerBuilder::create)
                                 .build())
@@ -124,44 +152,50 @@ public final class ChatTranslatorConfigScreen {
                 .build();
     }
 
-    private static ConfigCategory buildCustomCategory(TranslatorConfig config) {
+    private static ConfigCategory buildYourServerCategory(TranslatorConfig config) {
         return ConfigCategory.createBuilder()
-                .name(Component.literal("Custom / Ollama"))
-                .tooltip(Component.literal("Self-hosted Ollama instance for translation via /api/generate."))
+                .name(Component.literal("Your own server"))
+                .tooltip(Component.literal(
+                        "Only needed if you picked \"Your own server\" above and run Ollama yourself."))
                 .option(Option.<String>createBuilder()
-                        .name(Component.literal("Endpoint URL"))
+                        .name(Component.literal("Server address"))
                         .description(OptionDescription.of(Component.literal(
-                                "Base URL, e.g. http://localhost:11434 or https://your-host:11434")))
+                                "The web address where Ollama runs.\n"
+                                        + "On the same PC: http://localhost:11434\n"
+                                        + "On another machine: http://YOUR-IP:11434")))
                         .binding("", () -> config.customEndpointUrl, value -> config.customEndpointUrl = value)
                         .controller(StringControllerBuilder::create)
                         .build())
                 .option(Option.<String>createBuilder()
-                        .name(Component.literal("Ollama model"))
+                        .name(Component.literal("Model name"))
                         .description(OptionDescription.of(Component.literal(
-                                "Model tag served by Ollama, e.g. qwen2.5:1.5b")))
+                                "The model tag Ollama uses. Default qwen2.5:1.5b works well. "
+                                        + "Must match a model you already pulled in Ollama.")))
                         .binding("qwen2.5:1.5b", () -> config.ollamaModel, value -> config.ollamaModel = value)
                         .controller(StringControllerBuilder::create)
                         .build())
                 .build();
     }
 
-    private static ConfigCategory buildOutgoingCategory(TranslatorConfig config, TranslationState state) {
+    private static ConfigCategory buildWhatYouSendCategory(TranslatorConfig config, TranslationState state) {
         return ConfigCategory.createBuilder()
-                .name(Component.literal("Outgoing"))
-                .tooltip(Component.literal("How your typed English is translated before sending."))
+                .name(Component.literal("What you send"))
+                .tooltip(Component.literal(
+                        "Controls outgoing chat only — what happens when YOU type and press Enter."))
                 .option(Option.<Boolean>createBuilder()
-                        .name(Component.literal("Latin outgoing (romanized)"))
+                        .name(Component.literal("Use Latin letters when sending"))
                         .description(OptionDescription.of(Component.literal(
-                                "When enabled, outgoing translations are romanized to Latin ASCII "
-                                        + "(AntiSpam-safe on English-only servers).")))
+                                "On (recommended): sends Privet instead of Привет so public servers "
+                                        + "with AntiSpam do not block your message.\n"
+                                        + "Off: sends real foreign letters — looks authentic but may fail.")))
                         .binding(true, state::isLatinOutgoing, state::setLatinOutgoing)
                         .controller(TickBoxControllerBuilder::create)
                         .build())
                 .option(Option.<Boolean>createBuilder()
-                        .name(Component.literal("Auto target language"))
+                        .name(Component.literal("Auto-pick reply language"))
                         .description(OptionDescription.of(Component.literal(
-                                "Follow the last language detected from incoming hover-translate. "
-                                        + "When off, use the manual code below.")))
+                                "On: after you hover-read someone's chat, replies use their language.\n"
+                                        + "Off: always use the language code you type below.")))
                         .binding(true, state::isAuto, auto -> {
                             if (auto) {
                                 state.setAuto();
@@ -176,9 +210,10 @@ public final class ChatTranslatorConfigScreen {
                         .controller(TickBoxControllerBuilder::create)
                         .build())
                 .option(Option.<String>createBuilder()
-                        .name(Component.literal("Manual target language code"))
+                        .name(Component.literal("Locked language code"))
                         .description(OptionDescription.of(Component.literal(
-                                "ISO 639-1 code when auto is off, e.g. ru, fr, de.")))
+                                "Only when auto is off. Two-letter codes: ru Russian, fr French, "
+                                        + "de German, es Spanish, ja Japanese. Or use /translate <code>.")))
                         .binding("", () -> {
                             if (state.isAuto()) {
                                 return "";
@@ -198,17 +233,17 @@ public final class ChatTranslatorConfigScreen {
                 .build();
     }
 
-    private static ConfigCategory buildOnDeviceCategory(TranslatorConfig config) {
+    private static ConfigCategory buildSavedDownloadsCategory() {
         ModelManager models = ChatTranslatorServices.modelManager();
         return ConfigCategory.createBuilder()
-                .name(Component.literal("On-Device cache"))
+                .name(Component.literal("Saved downloads"))
                 .tooltip(Component.literal(
-                        "OPUS-MT models cached under .minecraft/chattranslator/models/"))
+                        "Language files saved on your computer when using \"On your computer\" mode."))
                 .option(ButtonOption.createBuilder()
-                        .name(Component.literal("Clear all cached models"))
+                        .name(Component.literal("Delete all saved language files"))
                         .description(OptionDescription.of(Component.literal(
-                                "Deletes every downloaded OPUS-MT pair. Click twice to confirm.\n"
-                                        + "Current cache: " + formatCacheStatus(models))))
+                                "Frees disk space. You will re-download next time you need a language.\n"
+                                        + "Click twice to confirm. Current: " + formatCacheStatus(models))))
                         .action(screen -> clearAllCachedModels(models))
                         .build())
                 .build();
@@ -216,7 +251,7 @@ public final class ChatTranslatorConfigScreen {
 
     private static String formatCacheStatus(ModelManager models) {
         int folders = models.listPairKeys().size();
-        return folders + " pair(s), " + models.formatTotalSize();
+        return folders + " language pack(s), " + models.formatTotalSize();
     }
 
     private static boolean clearArmed;
@@ -224,7 +259,7 @@ public final class ChatTranslatorConfigScreen {
     private static void clearAllCachedModels(ModelManager models) {
         if (!clearArmed) {
             clearArmed = true;
-            LocalNoticesHolder.show("Click Clear again to confirm deleting all cached models.");
+            LocalNoticesHolder.show("Click Delete again to confirm.");
             return;
         }
         clearArmed = false;
@@ -241,10 +276,9 @@ public final class ChatTranslatorConfigScreen {
             }
         }
         translator.unloadAll();
-        LocalNoticesHolder.show("Cleared " + removed + " cached model folder(s).");
+        LocalNoticesHolder.show("Deleted " + removed + " saved language pack(s).");
     }
 
-    /** Avoid importing LocalNotices into config package cycle — thin holder. */
     private static final class LocalNoticesHolder {
         private static void show(String text) {
             com.tanman.chattranslator.client.LocalNotices.show(text);

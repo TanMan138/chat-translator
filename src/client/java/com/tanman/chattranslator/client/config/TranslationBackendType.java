@@ -1,9 +1,9 @@
 package com.tanman.chattranslator.client.config;
 
 public enum TranslationBackendType {
-    ON_DEVICE("On-Device (OPUS-MT)"),
-    MANAGED_CLOUD("Managed Cloud (BYOK)"),
-    CUSTOM("Custom / Self-Hosted (Ollama)");
+    ON_DEVICE("On your computer (recommended)"),
+    MANAGED_CLOUD("Online service (your API key)"),
+    CUSTOM("Your own server (Ollama)");
 
     private final String label;
 

@@ -1,35 +1,22 @@
 package com.tanman.chattranslator.client.command;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.tanman.chattranslator.client.ChatTranslatorServices;
+import com.tanman.chattranslator.client.guide.GuideScreen;
+import com.tanman.chattranslator.client.guide.PlayerGuide;
 import com.tanman.chattranslator.client.state.TranslationState;
 import com.tanman.chattranslator.client.translation.ModelManager;
 import com.tanman.chattranslator.client.translation.Translator;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.Locale;
 
 public class TranslateCommand {
-
-    private static final String LANG_GUIDE = """
-            Common language codes (ISO 639-1):
-              fr French   de German    es Spanish   ru Russian
-              ja Japanese zh Chinese   ko Korean    pt Portuguese
-              it Italian  nl Dutch     pl Polish    uk Ukrainian
-              ar Arabic   tr Turkish   sv Swedish   cs Czech
-              fi Finnish  hu Hungarian ro Romanian  el Greek
-              hi Hindi    id Indonesian vi Vietnamese th Thai
-            /translate <code>       — lock outgoing language
-            /translate latin        — outgoing as Latin letters (default)
-                                      e.g. Привет → Privet — AntiSpam-safe
-            /translate native       — outgoing real script (may be blocked)
-            /translate models       — list cached models + sizes
-            /translate clear <x>    — delete cache (ru | en-ru | all)
-            Protect words: wrap in {{double braces}} e.g. hi {{Steve}}
-            Incoming: open chat, hover a line — English on tooltip.
-            GUI: Mods → Chat Translator → Config (needs Mod Menu).""";
 
     public static void register(
             TranslationState state,
@@ -39,60 +26,60 @@ public class TranslateCommand {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(ClientCommands.literal("translate")
                     .executes(ctx -> {
-                        ctx.getSource().sendFeedback(Component.literal(LANG_GUIDE));
+                        ctx.getSource().sendFeedback(Component.literal(PlayerGuide.HELP_CHEAT_SHEET));
                         return 1;
                     })
                     .then(ClientCommands.literal("help")
                             .executes(ctx -> {
-                                ctx.getSource().sendFeedback(Component.literal(LANG_GUIDE));
+                                ctx.getSource().sendFeedback(Component.literal(PlayerGuide.HELP_CHEAT_SHEET));
+                                return 1;
+                            }))
+                    .then(ClientCommands.literal("guide")
+                            .executes(ctx -> {
+                                openGuide(ctx.getSource());
+                                ctx.getSource().sendFeedback(Component.literal(
+                                        "Opening the Chat Translator guide…"));
                                 return 1;
                             }))
                     .then(ClientCommands.literal("latin")
                             .executes(ctx -> {
                                 state.setLatinOutgoing(true);
                                 ctx.getSource().sendFeedback(Component.literal(
-                                        "Outgoing script: LATIN (romanized).\n"
-                                                + "What this means: after English→target "
-                                                + "translation, letters are converted to "
-                                                + "Latin ASCII. Example: Привет → Privet.\n"
-                                                + "Why: many public / AntiSpam servers "
-                                                + "(e.g. Mineberry) reject Cyrillic, CJK, "
-                                                + "Arabic, etc. as \"forbidden symbols\".\n"
-                                                + "This is the default — safest for public chat."));
+                                        "Outgoing style: Latin letters (default).\n"
+                                                + "Your translated messages use normal English letters "
+                                                + "(e.g. Privet instead of Привет).\n"
+                                                + "Best for public servers that block foreign scripts."));
                                 return 1;
                             }))
                     .then(ClientCommands.literal("native")
                             .executes(ctx -> {
                                 state.setLatinOutgoing(false);
                                 ctx.getSource().sendFeedback(Component.literal(
-                                        "Outgoing script: NATIVE.\n"
-                                                + "What this means: send the real target "
-                                                + "script (Cyrillic, Japanese, Arabic, …).\n"
-                                                + "Looks authentic, but English-only servers "
-                                                + "often block it. Switch back with "
-                                                + "/translate latin if messages fail."));
+                                        "Outgoing style: real foreign letters.\n"
+                                                + "Messages look authentic but some servers block them.\n"
+                                                + "If chat fails, switch back with /translate latin."));
                                 return 1;
                             }))
                     .then(ClientCommands.literal("auto")
                             .executes(ctx -> {
                                 state.setAuto();
                                 ctx.getSource().sendFeedback(Component.literal(
-                                        "Translation target set to auto."));
+                                        "Outgoing language: auto.\n"
+                                                + "Replies will follow the last language you read in chat."));
                                 return 1;
                             }))
                     .then(ClientCommands.literal("status")
                             .executes(ctx -> {
-                                String status = state.isAuto()
-                                        ? "auto (" + state.getCurrentTargetLanguage()
-                                        .orElse("none detected yet") + ")"
-                                        : "manual (" + state.getCurrentTargetLanguage()
-                                        .orElse("none") + ")";
-                                String script = state.isLatinOutgoing() ? "latin" : "native";
+                                if (!ChatTranslatorServices.ready()) {
+                                    ctx.getSource().sendFeedback(Component.literal(
+                                            "Chat Translator is still loading."));
+                                    return 1;
+                                }
                                 ctx.getSource().sendFeedback(Component.literal(
-                                        "Translation mode: " + status
-                                                + " | script: " + script
-                                                + " | cache: " + modelManager.formatTotalSize()
-                                                + " | /translate models"));
+                                        PlayerGuide.formatStatus(
+                                                state,
+                                                modelManager,
+                                                ChatTranslatorServices.config())));
                                 return 1;
                             }))
                     .then(ClientCommands.literal("models")
@@ -100,11 +87,12 @@ public class TranslateCommand {
                                 List<String> keys = modelManager.listPairKeys();
                                 if (keys.isEmpty()) {
                                     ctx.getSource().sendFeedback(Component.literal(
-                                            "No models cached. Path: "
-                                                    + modelManager.baseDir()));
+                                            "No language files saved yet.\n"
+                                                    + "They download automatically when you hover-read chat "
+                                                    + "(if you use \"On your computer\" mode)."));
                                     return 1;
                                 }
-                                StringBuilder sb = new StringBuilder("Cached models (")
+                                StringBuilder sb = new StringBuilder("Saved language files (")
                                         .append(modelManager.formatTotalSize())
                                         .append("):\n");
                                 for (String key : keys) {
@@ -146,20 +134,29 @@ public class TranslateCommand {
                                 }
                                 state.setManualTarget(lang);
                                 ctx.getSource().sendFeedback(Component.literal(
-                                        "Translation target manually set to " + lang
-                                                + ". Script mode: "
-                                                + (state.isLatinOutgoing() ? "latin" : "native")
-                                                + "."));
+                                        "Outgoing language locked to: " + lang + ".\n"
+                                                + "Type in English — the mod translates before sending.\n"
+                                                + "Style: "
+                                                + (state.isLatinOutgoing()
+                                                ? "Latin letters (/translate native for real script)"
+                                                : "real foreign letters")));
                                 return 1;
                             })));
         });
     }
 
+    private static void openGuide(FabricClientCommandSource source) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft != null) {
+            GuideScreen.open(minecraft.screen);
+        }
+    }
+
     private static boolean isReserved(String lang) {
         return lang.equals("latin") || lang.equals("native")
                 || lang.equals("auto") || lang.equals("help")
-                || lang.equals("status") || lang.equals("models")
-                || lang.equals("clear");
+                || lang.equals("guide") || lang.equals("status")
+                || lang.equals("models") || lang.equals("clear");
     }
 
     private static int clearModels(
@@ -191,7 +188,7 @@ public class TranslateCommand {
             translator.unloadAll();
         }
         feedback.accept(Component.literal(
-                "Cleared " + removed + " model folder(s). Cache now: "
+                "Removed " + removed + " language pack(s). Saved space: "
                         + modelManager.formatTotalSize() + "."));
         return removed > 0 ? 1 : 0;
     }
