@@ -45,10 +45,21 @@ dependencies {
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
 	// Chat Translator: ML inference stack
-	implementation "ai.djl:api:${project.djl_version}"
-	runtimeOnly "ai.djl.onnxruntime:onnxruntime-engine:${project.djl_version}"
-	implementation "ai.djl.huggingface:tokenizers:${project.djl_version}"
-	implementation "com.github.pemistahl:lingua:${project.lingua_version}"
+	// These are ordinary Maven libraries, not Fabric mods, so players won't have them
+	// installed separately — include(...) bundles each as a nested jar inside our own
+	// mod jar (Fabric Loom's "jar-in-jar"), which Fabric Loader extracts onto the
+	// classpath at launch. Without this, `implementation`/`runtimeOnly` alone only
+	// works in the dev environment (Gradle assembles the full classpath for
+	// `runClient`) and throws NoClassDefFoundError in a real installed instance.
+	implementation include("ai.djl:api:${project.djl_version}")
+	runtimeOnly include("ai.djl.onnxruntime:onnxruntime-engine:${project.djl_version}")
+	// include(...) does not pull in transitive dependencies of what it's given, so the
+	// actual native ONNX Runtime binaries (a separate artifact from the thin DJL engine
+	// wrapper above) must be included explicitly too, or inference fails at runtime
+	// with UnsatisfiedLinkError despite the engine wrapper class loading fine.
+	runtimeOnly include("com.microsoft.onnxruntime:onnxruntime:1.21.1")
+	implementation include("ai.djl.huggingface:tokenizers:${project.djl_version}")
+	implementation include("com.github.pemistahl:lingua:${project.lingua_version}")
 
 	clientTestImplementation "org.junit.jupiter:junit-jupiter:${project.junit_version}"
 	clientTestRuntimeOnly "org.junit.platform:junit-platform-launcher"
