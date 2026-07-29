@@ -48,6 +48,17 @@ class TranslationServiceTest {
     }
 
     @Test
+    void selectsLangblyWhenConfigured() {
+        TranslatorConfig config = new TranslatorConfig();
+        config.backend = TranslationBackendType.MANAGED_CLOUD;
+        config.cloudProvider = CloudProvider.LANGBLY;
+        TranslationService service = createService(config);
+        assertInstanceOf(LangblyBackend.class, service.resolveBackend());
+        assertTrue(service.isRemoteBackend());
+        assertFalse(service.requiresModelDownload());
+    }
+
+    @Test
     void selectsOllamaForCustomBackend() {
         TranslatorConfig config = new TranslatorConfig();
         config.backend = TranslationBackendType.CUSTOM;

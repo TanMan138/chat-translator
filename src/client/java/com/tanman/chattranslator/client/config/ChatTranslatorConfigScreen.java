@@ -102,11 +102,13 @@ public final class ChatTranslatorConfigScreen {
                 .group(OptionGroup.createBuilder()
                         .name(Component.literal("Which service?"))
                         .option(Option.<CloudProvider>createBuilder()
-                                .name(Component.literal("Pick DeepL or Google"))
+                                .name(Component.literal("Pick your service"))
                                 .description(OptionDescription.of(Component.literal(
                                         "DeepL: sign up at deepl.com and copy your API key.\n"
-                                                + "Google: use a Google Cloud Translation key. "
-                                                + "Langbly users: pick Google and paste the key Langbly gave you.")))
+                                                + "Google Translate: needs a Google Cloud key (starts with AIza).\n"
+                                                + "Langbly: sign up at langbly.com, free tier available. "
+                                                + "A Langbly key only works with Langbly selected here — "
+                                                + "it will be rejected if you pick Google.")))
                                 .binding(
                                         CloudProvider.DEEPL,
                                         () -> config.cloudProvider,
@@ -142,11 +144,37 @@ public final class ChatTranslatorConfigScreen {
                                 .name(Component.literal("Google API key"))
                                 .description(OptionDescription.of(Component.literal(
                                         "Step 1: Get a Google Cloud Translation API key "
-                                                + "(or use a key from Langbly or similar).\n"
+                                                + "(it starts with AIza).\n"
                                                 + "Step 2: Paste it here.\n"
-                                                + "Needs internet every time you translate.")))
+                                                + "Needs internet every time you translate.\n"
+                                                + "Have a Langbly key instead? Pick Langbly above — "
+                                                + "Langbly keys do not work here.")))
                                 .binding("", () -> config.googleApiKey, value -> config.googleApiKey = value)
                                 .controller(StringControllerBuilder::create)
+                                .build())
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(Component.literal("Langbly setup"))
+                        .option(Option.<String>createBuilder()
+                                .name(Component.literal("Langbly API key"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Step 1: Sign up at langbly.com and create a key in the dashboard.\n"
+                                                + "Step 2: Paste it here and pick Langbly above.\n"
+                                                + "Free tier included; needs internet every time you translate.")))
+                                .binding("", () -> config.langblyApiKey, value -> config.langblyApiKey = value)
+                                .controller(StringControllerBuilder::create)
+                                .build())
+                        .option(Option.<Boolean>createBuilder()
+                                .name(Component.literal("Keep my data in the EU"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "On: sends your chat to Langbly's EU-only servers "
+                                                + "(eu.langbly.com) for EU data residency.\n"
+                                                + "Off (default): uses the global server (api.langbly.com).")))
+                                .binding(
+                                        false,
+                                        () -> config.langblyUseEuEndpoint,
+                                        value -> config.langblyUseEuEndpoint = value)
+                                .controller(TickBoxControllerBuilder::create)
                                 .build())
                         .build())
                 .build();

@@ -39,6 +39,8 @@ public final class TranslatorConfig {
     public String deeplApiKey = "";
     public boolean deeplUseFreeApi = true;
     public String googleApiKey = "";
+    public String langblyApiKey = "";
+    public boolean langblyUseEuEndpoint = false;
     public String customEndpointUrl = "";
     public String ollamaModel = "qwen2.5:1.5b";
 
@@ -104,6 +106,9 @@ public final class TranslatorConfig {
         }
         if (googleApiKey == null) {
             googleApiKey = "";
+        }
+        if (langblyApiKey == null) {
+            langblyApiKey = "";
         }
         if (customEndpointUrl == null) {
             customEndpointUrl = "";

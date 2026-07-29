@@ -20,6 +20,8 @@ class TranslatorConfigTest {
         assertEquals(CloudProvider.DEEPL, config.cloudProvider);
         assertEquals("qwen2.5:1.5b", config.ollamaModel);
         assertTrue(config.deeplUseFreeApi);
+        assertEquals("", config.langblyApiKey);
+        assertFalse(config.langblyUseEuEndpoint);
         assertFalse(config.isRemoteBackend());
     }
 
@@ -32,10 +34,12 @@ class TranslatorConfigTest {
                   "auto": false,
                   "targetLanguage": "fr",
                   "backend": "MANAGED_CLOUD",
-                  "cloudProvider": "GOOGLE",
+                  "cloudProvider": "LANGBLY",
                   "deeplApiKey": "deepl-test",
                   "deeplUseFreeApi": false,
                   "googleApiKey": "google-test",
+                  "langblyApiKey": "langbly-test",
+                  "langblyUseEuEndpoint": true,
                   "customEndpointUrl": "http://localhost:11434",
                   "ollamaModel": "llama3"
                 }
@@ -43,10 +47,12 @@ class TranslatorConfigTest {
 
         TranslatorConfig loaded = loadFrom(file);
         assertEquals(TranslationBackendType.MANAGED_CLOUD, loaded.backend);
-        assertEquals(CloudProvider.GOOGLE, loaded.cloudProvider);
+        assertEquals(CloudProvider.LANGBLY, loaded.cloudProvider);
         assertEquals("deepl-test", loaded.deeplApiKey);
         assertFalse(loaded.deeplUseFreeApi);
         assertEquals("google-test", loaded.googleApiKey);
+        assertEquals("langbly-test", loaded.langblyApiKey);
+        assertTrue(loaded.langblyUseEuEndpoint);
         assertEquals("http://localhost:11434", loaded.customEndpointUrl);
         assertEquals("llama3", loaded.ollamaModel);
         assertTrue(loaded.isRemoteBackend());

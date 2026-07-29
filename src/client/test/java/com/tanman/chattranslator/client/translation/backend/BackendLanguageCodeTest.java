@@ -19,6 +19,12 @@ class BackendLanguageCodeTest {
     }
 
     @Test
+    void langblyPicksEndpointByResidency() {
+        assertEquals("https://api.langbly.com/language/translate/v2", LangblyBackend.endpoint(false));
+        assertEquals("https://eu.langbly.com/language/translate/v2", LangblyBackend.endpoint(true));
+    }
+
+    @Test
     void ollamaLanguageNames() {
         assertEquals("English", OllamaBackend.languageName("en"));
         assertEquals("French", OllamaBackend.languageName("fr"));

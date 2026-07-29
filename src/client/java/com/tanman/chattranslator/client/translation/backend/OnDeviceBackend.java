@@ -2,6 +2,7 @@ package com.tanman.chattranslator.client.translation.backend;
 
 import com.tanman.chattranslator.ChatTranslator;
 import com.tanman.chattranslator.client.LocalNotices;
+import com.tanman.chattranslator.client.translation.DownloadOutcome;
 import com.tanman.chattranslator.client.translation.ModelDownloader;
 import com.tanman.chattranslator.client.translation.ModelManager;
 import com.tanman.chattranslator.client.translation.TranslationResult;
@@ -23,7 +24,7 @@ public final class OnDeviceBackend implements TranslationBackend {
     private static final long DOWNLOAD_TIMEOUT_SECONDS = 60;
 
     private static final Set<String> FAILED_PAIRS = ConcurrentHashMap.newKeySet();
-    private static final Map<String, CompletableFuture<Boolean>> IN_FLIGHT_DOWNLOADS =
+    private static final Map<String, CompletableFuture<DownloadOutcome>> IN_FLIGHT_DOWNLOADS =
             new ConcurrentHashMap<>();
 
     private final ModelManager modelManager;
@@ -82,9 +83,9 @@ public final class OnDeviceBackend implements TranslationBackend {
             String pairKey
     ) {
         try {
-            Boolean downloaded = inFlightDownload(sourceLang, targetLang, modelDir, pairKey)
+            DownloadOutcome outcome = inFlightDownload(sourceLang, targetLang, modelDir, pairKey)
                     .get(DOWNLOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (Boolean.TRUE.equals(downloaded)) {
+            if (outcome != null && outcome.ok()) {
                 return true;
             }
             FAILED_PAIRS.add(pairKey);
@@ -99,27 +100,34 @@ public final class OnDeviceBackend implements TranslationBackend {
         return false;
     }
 
-    private CompletableFuture<Boolean> inFlightDownload(
+    private CompletableFuture<DownloadOutcome> inFlightDownload(
             String sourceLang,
             String targetLang,
             Path modelDir,
             String pairKey
     ) {
         boolean[] started = {false};
-        CompletableFuture<Boolean> download = IN_FLIGHT_DOWNLOADS.computeIfAbsent(pairKey, key -> {
+        CompletableFuture<DownloadOutcome> download = IN_FLIGHT_DOWNLOADS.computeIfAbsent(pairKey, key -> {
             started[0] = true;
             LocalNotices.show("Downloading the " + sourceLang + "->" + targetLang
                     + " translation model…");
             return downloader.download(sourceLang, targetLang, modelDir);
         });
         if (started[0]) {
-            download.whenComplete((ok, error) -> {
+            download.whenComplete((outcome, error) -> {
                 IN_FLIGHT_DOWNLOADS.remove(pairKey, download);
-                if (Boolean.TRUE.equals(ok)) {
+                if (error != null) {
+                    return;
+                }
+                if (outcome != null && outcome.ok()) {
                     LocalNotices.show(sourceLang + "->" + targetLang + " model ready.");
-                } else if (error == null) {
+                } else if (outcome == DownloadOutcome.NOT_AVAILABLE) {
+                    LocalNotices.show("No on-device model for " + sourceLang + "->"
+                            + targetLang + " — that language isn't supported offline. "
+                            + "Try Online service (DeepL / Langbly) in Config.");
+                } else {
                     LocalNotices.show("Couldn't download the " + sourceLang + "->"
-                            + targetLang + " model.");
+                            + targetLang + " model — check your internet and try again.");
                 }
             });
         }

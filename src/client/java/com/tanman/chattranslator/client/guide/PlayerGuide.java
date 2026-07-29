@@ -47,7 +47,9 @@ public final class PlayerGuide {
                     Step 3: Press Enter — the mod translates it before sending.
                     
                     On public servers, keep "Latin letters" on (default) so AntiSpam \
-                    plugins do not block Cyrillic or other scripts. Example: Privet instead of Привет."""),
+                    plugins do not block Cyrillic or other scripts. Example: Privet instead of Привет.
+                    Russian and Ukrainian use familiar chat-style spelling; other languages use \
+                    a general romanizer. Romanization always happens on your computer."""),
             new Page("Pick how translation runs",
                     """
                     ON YOUR COMPUTER (recommended for most players)
@@ -61,9 +63,14 @@ public final class PlayerGuide {
                       Set in Config → Online services → DeepL.
                     
                     GOOGLE TRANSLATE (you bring your own API key)
-                      Good: many languages; also works with Langbly-style keys.
-                      Bad: needs internet and a Google Cloud key.
+                      Good: many languages.
+                      Bad: needs internet and a Google Cloud key (starts with AIza).
                       Set in Config → Online services → Google.
+                    
+                    LANGBLY (you bring your own API key)
+                      Good: free tier, 130+ languages, 30-second signup, optional EU-only servers.
+                      Bad: needs internet and a langbly.com account.
+                      Set in Config → Online services → Langbly.
                     
                     YOUR OWN SERVER (Ollama)
                       Good: you control everything.
@@ -71,9 +78,9 @@ public final class PlayerGuide {
                       Set in Config → Your own server."""),
             new Page("Other services (not built-in buttons)",
                     """
-                    Langbly or similar "give me a Google key" services:
-                      → In Config, pick "Online service" and Google Translate.
-                      → Paste the API key they gave you. No separate Langbly button needed.
+                    Langbly:
+                      → Config → Online services → pick Langbly, paste your langbly.com key.
+                      → Do not pick Google for a Langbly key — Google will reject it.
                     
                     LibreTranslate or other self-hosted translate sites:
                       → Only if you can run something like Ollama on your own PC or VPS.
@@ -135,9 +142,7 @@ public final class PlayerGuide {
         config.normalize();
         return switch (config.backend) {
             case ON_DEVICE -> "on your computer";
-            case MANAGED_CLOUD -> config.cloudProvider == CloudProvider.GOOGLE
-                    ? "online (Google Translate)"
-                    : "online (DeepL)";
+            case MANAGED_CLOUD -> "online (" + config.cloudProvider.label() + ")";
             case CUSTOM -> "your own server (Ollama)";
         };
     }

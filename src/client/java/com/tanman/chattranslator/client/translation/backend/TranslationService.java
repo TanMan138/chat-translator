@@ -24,6 +24,7 @@ public final class TranslationService {
     private final OnDeviceBackend onDevice;
     private final DeepLBackend deepL;
     private final GoogleTranslateBackend google;
+    private final LangblyBackend langbly;
     private final OllamaBackend ollama;
 
     public TranslationService(
@@ -36,6 +37,7 @@ public final class TranslationService {
         this.onDevice = new OnDeviceBackend(modelManager, downloader, translator);
         this.deepL = new DeepLBackend(config);
         this.google = new GoogleTranslateBackend(config);
+        this.langbly = new LangblyBackend(config);
         this.ollama = new OllamaBackend(config);
     }
 
@@ -63,7 +65,11 @@ public final class TranslationService {
         config.normalize();
         return switch (config.backend) {
             case ON_DEVICE -> onDevice;
-            case MANAGED_CLOUD -> config.cloudProvider == CloudProvider.GOOGLE ? google : deepL;
+            case MANAGED_CLOUD -> switch (config.cloudProvider) {
+                case GOOGLE -> google;
+                case LANGBLY -> langbly;
+                case DEEPL -> deepL;
+            };
             case CUSTOM -> ollama;
         };
     }
@@ -77,6 +83,11 @@ public final class TranslationService {
         } else if (backend instanceof GoogleTranslateBackend) {
             if (config.googleApiKey == null || config.googleApiKey.isBlank()) {
                 noticeOnce("google-key", "Set your Google Translate API key in Mod Menu config.");
+                return false;
+            }
+        } else if (backend instanceof LangblyBackend) {
+            if (config.langblyApiKey == null || config.langblyApiKey.isBlank()) {
+                noticeOnce("langbly-key", "Set your Langbly API key in Mod Menu config.");
                 return false;
             }
         } else if (backend instanceof OllamaBackend) {

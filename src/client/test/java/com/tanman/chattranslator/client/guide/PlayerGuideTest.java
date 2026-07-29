@@ -62,6 +62,9 @@ class PlayerGuideTest {
         config.cloudProvider = CloudProvider.GOOGLE;
         assertEquals("online (Google Translate)", PlayerGuide.backendLabel(config));
 
+        config.cloudProvider = CloudProvider.LANGBLY;
+        assertEquals("online (Langbly)", PlayerGuide.backendLabel(config));
+
         config.backend = TranslationBackendType.CUSTOM;
         assertEquals("your own server (Ollama)", PlayerGuide.backendLabel(config));
     }
@@ -86,7 +89,8 @@ class PlayerGuideTest {
         assertTrue(TranslationBackendType.ON_DEVICE.label().toLowerCase().contains("computer"));
         assertTrue(TranslationBackendType.MANAGED_CLOUD.label().toLowerCase().contains("online"));
         assertTrue(TranslationBackendType.CUSTOM.label().toLowerCase().contains("ollama"));
-        assertTrue(CloudProvider.GOOGLE.label().toLowerCase().contains("langbly"));
+        assertEquals("Langbly", CloudProvider.LANGBLY.label());
+        assertFalse(CloudProvider.GOOGLE.label().toLowerCase().contains("langbly"));
         assertFalse(TranslationBackendType.ON_DEVICE.label().contains("OPUS"));
         assertFalse(TranslationBackendType.MANAGED_CLOUD.label().contains("BYOK"));
     }

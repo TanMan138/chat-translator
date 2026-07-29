@@ -2,7 +2,8 @@ package com.tanman.chattranslator.client.config;
 
 public enum CloudProvider {
     DEEPL("DeepL"),
-    GOOGLE("Google Translate (also Langbly-style keys)");
+    GOOGLE("Google Translate"),
+    LANGBLY("Langbly");
 
     private final String label;
 

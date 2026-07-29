@@ -45,7 +45,7 @@ public class ModelDownloader {
             .connectTimeout(Duration.ofSeconds(30))
             .build();
 
-    public CompletableFuture<Boolean> download(String sourceLang, String targetLang, Path destDir) {
+    public CompletableFuture<DownloadOutcome> download(String sourceLang, String targetLang, Path destDir) {
         String pair = sourceLang + "->" + targetLang;
         return CompletableFuture.supplyAsync(() -> {
             PAIR_SLOT.acquireUninterruptibly();
@@ -57,7 +57,7 @@ public class ModelDownloader {
         }, PAIR_QUEUE);
     }
 
-    private boolean downloadPair(String sourceLang, String targetLang, Path destDir, String pair) {
+    private DownloadOutcome downloadPair(String sourceLang, String targetLang, Path destDir, String pair) {
         String repoBase = String.format(BASE_URL, sourceLang, targetLang);
         LocalNotices.show("Downloading " + pair + " (4 files)…");
 
@@ -80,23 +80,33 @@ public class ModelDownloader {
         for (int i = 0; i < jobs.length; i++) {
             FileJob job = jobs[i];
             LocalNotices.show(pair + ": " + job.label() + " (" + (i + 1) + "/4)…");
-            if (!fetchToFile(job.url(), job.dest(), pair, job.label())) {
-                LocalNotices.show(pair + ": failed on " + job.label() + ".");
-                return false;
+            FetchResult result = fetchToFile(job.url(), job.dest(), pair, job.label());
+            if (result != FetchResult.OK) {
+                if (result == FetchResult.NOT_AVAILABLE) {
+                    ChatTranslator.LOGGER.warn(
+                            "No on-device OPUS-MT model for {} (Hugging Face has no Xenova/opus-mt-{}-{} repo)",
+                            pair, sourceLang, targetLang);
+                    LocalNotices.show(pair + ": no on-device model published for this language.");
+                } else {
+                    LocalNotices.show(pair + ": failed on " + job.label() + ".");
+                }
+                return result == FetchResult.NOT_AVAILABLE
+                        ? DownloadOutcome.NOT_AVAILABLE
+                        : DownloadOutcome.FAILED;
             }
             LocalNotices.show(pair + ": " + job.label() + " done (" + (i + 1) + "/4).");
         }
-        return true;
+        return DownloadOutcome.SUCCESS;
     }
 
-    private boolean fetchToFile(String url, Path dest, String pair, String label) {
+    private FetchResult fetchToFile(String url, Path dest, String pair, String label) {
         Path tempFile = dest.resolveSibling(dest.getFileName() + ".part");
 
         try {
             Files.createDirectories(dest.getParent());
         } catch (IOException e) {
             ChatTranslator.LOGGER.warn("Could not create model directory {}: {}", dest.getParent(), e.toString());
-            return false;
+            return FetchResult.FAILED;
         }
 
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
@@ -107,12 +117,19 @@ public class ModelDownloader {
         try {
             HttpResponse<InputStream> response =
                     client.send(request, HttpResponse.BodyHandlers.ofInputStream());
-            if (response.statusCode() != 200) {
+            int status = response.statusCode();
+            if (status != 200) {
+                DownloadOutcome classified = classifyHttpStatus(status);
+                if (classified == DownloadOutcome.NOT_AVAILABLE) {
+                    ChatTranslator.LOGGER.warn(
+                            "On-device model not available (HTTP {}): {}", status, url);
+                    deleteQuietly(tempFile);
+                    return FetchResult.NOT_AVAILABLE;
+                }
                 ChatTranslator.LOGGER.warn(
-                        "Model file download failed (HTTP {}): {}",
-                        response.statusCode(), url);
+                        "Model file download failed (HTTP {}): {}", status, url);
                 deleteQuietly(tempFile);
-                return false;
+                return FetchResult.FAILED;
             }
 
             long contentLength = response.headers().firstValueAsLong("Content-Length").orElse(-1L);
@@ -144,12 +161,23 @@ public class ModelDownloader {
             if (ModelFiles.TOKENIZER.equals(dest.getFileName().toString())) {
                 TokenizerSanitizer.sanitize(dest);
             }
-            return true;
+            return FetchResult.OK;
         } catch (Exception e) {
             ChatTranslator.LOGGER.warn("Model file download error for {}: {}", url, e.toString());
             deleteQuietly(tempFile);
-            return false;
+            return FetchResult.FAILED;
         }
+    }
+
+    /**
+     * Hugging Face often returns 401/403 for missing private-or-absent model repos
+     * instead of a clean 404 — treat those as "not published", not a bad password.
+     */
+    static DownloadOutcome classifyHttpStatus(int statusCode) {
+        return switch (statusCode) {
+            case 401, 403, 404 -> DownloadOutcome.NOT_AVAILABLE;
+            default -> DownloadOutcome.FAILED;
+        };
     }
 
     private void deleteQuietly(Path path) {
@@ -158,5 +186,11 @@ public class ModelDownloader {
         } catch (IOException ignored) {
             // Best-effort cleanup only.
         }
+    }
+
+    private enum FetchResult {
+        OK,
+        NOT_AVAILABLE,
+        FAILED
     }
 }

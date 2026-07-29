@@ -18,7 +18,7 @@ No setup needed for most players. Leave the default **“On your computer”** m
 2. Type your message in **English**.
 3. Press Enter — the mod translates it before sending.
 
-**Tip:** Keep **Latin letters** on (default) on public servers so AntiSpam plugins do not block messages (`Privet` instead of `Привет`).
+**Tip:** Keep **Latin letters** on (default) on public servers so AntiSpam plugins do not block messages (`Privet` instead of `Привет`). Russian and Ukrainian use familiar chat-style spelling; other scripts use a general local romanizer. This step always runs on your computer, even with an online translation service.
 
 ### Pick how translation runs
 
@@ -26,10 +26,11 @@ No setup needed for most players. Leave the default **“On your computer”** m
 |---|---|---|---|
 | **On your computer** (default) | Most players | Free after download, works offline | First use downloads files |
 | **DeepL** (your API key) | Quality translations | Very accurate | Needs deepl.com account + internet |
-| **Google Translate** (your API key) | Many languages, Langbly keys | Wide language support | Needs Google/Langbly key + internet |
+| **Google Translate** (your API key) | Many languages | Wide language support | Needs a Google Cloud key + internet |
+| **Langbly** (your API key) | Free tier, EU data residency | 130+ languages, fast signup | Needs a langbly.com key + internet |
 | **Your own server (Ollama)** | Tech-savvy / self-hosting | You control it | You must run Ollama yourself |
 
-**Langbly users:** In Config, pick **Online service** → **Google Translate**, and paste the API key Langbly gave you.
+**Langbly users:** In Config, pick **Online service** → **Langbly**, paste your [langbly.com](https://langbly.com/docs/) key, and optionally turn on **Keep my data in the EU**. Do not select **Google Translate** for a Langbly key — Google rejects it with `API key not valid`.
 
 **Other services:** ChatGPT websites and LibreTranslate are **not** built-in buttons. See `/translate guide` in-game for details.
 
@@ -78,7 +79,7 @@ No setup needed for most players. Leave the default **“On your computer”** m
 
 - Language detection: [Lingua](https://github.com/pemistahl/lingua) (local).
 - **On your computer:** [DJL](https://djl.ai/) + ONNX Runtime, [Helsinki-NLP OPUS-MT](https://github.com/Helsinki-NLP/Opus-MT) via Xenova Hugging Face repos.
-- **Online:** DeepL REST or Google Cloud Translation API v2.
+- **Online:** DeepL REST, Google Cloud Translation API v2, or Langbly. Langbly uses the same v2 request/response shape as Google but authenticates with `Authorization: Bearer <key>` against `api.langbly.com` / `eu.langbly.com`, so it needs its own backend rather than a shared one.
 - **Ollama:** `POST {base}/api/generate` with `stream: false`.
 - Model cache: `.minecraft/chattranslator/models/` (on-device mode only).
 
@@ -95,13 +96,13 @@ No setup needed for most players. Leave the default **“On your computer”** m
 | `/translate models` | List cached language pairs |
 | `/translate clear <en-ru\|ru\|all>` | Delete cached models |
 
-Not every language code has a published on-device model. Browse [Xenova OPUS-MT models](https://huggingface.co/models?search=Xenova/opus-mt) if download fails.
+Not every language code has a published on-device model. Missing pairs return HTTP 401/404 from Hugging Face and the mod tells you the language isn't supported offline (passthrough). Browse [Xenova OPUS-MT models](https://huggingface.co/models?search=Xenova/opus-mt) or switch to DeepL / Langbly for wider coverage.
 
 ### Config categories (YACL)
 
 - **Start here** — summary + open full guide
 - **How to translate** — on computer / online / your server
-- **Online services** — DeepL or Google keys
+- **Online services** — DeepL, Google, or Langbly keys
 - **Your own server** — Ollama URL and model
 - **What you send** — Latin letters, auto language, locked code
 - **Saved downloads** — clear on-device cache
