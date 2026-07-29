@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"id": "chat-translator",
+	"version": "${version}",
+	"name": "Chat Translator",
+	"description": "Automatically translates incoming chat to English and outgoing chat to your target language, fully offline via local OPUS-MT/ONNX models.",
+	"authors": [
+		"Tanmay"
+	],
+	"contact": {
+		"sources": "https://github.com/TanMan138/chat-translator"
+	},
+	"license": "MIT",
+	"icon": "assets/chat-translator/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"main": [
+			"com.tanman.chattranslator.ChatTranslator"
+		],
+		"client": [
+			"com.tanman.chattranslator.client.ChatTranslatorClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.1.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

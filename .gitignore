@@ -1,0 +1,53 @@
+# gradle
+
+.gradle/
+build/
+out/
+classes/
+
+# eclipse
+
+*.launch
+
+# idea
+
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# vscode
+
+.settings/
+.vscode/
+bin/
+.classpath
+.project
+
+# macos
+
+*.DS_Store
+
+# fabric
+
+run/
+
+# java
+
+hs_err_*.log
+replay_*.log
+*.hprof
+*.jfr
+
+# AI tooling (local use only, not for public repo)
+
+.claude/
+.superpowers/
+.clinerules/
+.cursor/
+.windsurf/
+.opencode/
+AGENTS.md
+CLAUDE.md
+.github/copilot-instructions.md
+docs/superpowers/
