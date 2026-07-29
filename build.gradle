@@ -8,11 +8,14 @@ group = project.maven_group
 
 repositories {
 	mavenCentral()
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
+	maven {
+		name = "Terraformers"
+		url = "https://maven.terraformersmc.com/"
+	}
+	maven {
+		name = "Xander"
+		url = "https://maven.isxander.dev/releases"
+	}
 }
 
 loom {
@@ -73,6 +76,17 @@ dependencies {
 	implementation include("com.squareup.moshi:moshi:1.13.0")
 	implementation include("com.squareup.moshi:moshi-kotlin:1.13.0")
 	implementation include("com.squareup.okio:okio:2.10.0")
+	// Script → Latin romanization for outgoing chat on English-only servers
+	implementation include("com.ibm.icu:icu4j:${project.icu4j_version}")
+
+	// Optional Mod Menu config button (not required at runtime for players).
+	// compileOnly so the jar does not hard-depend; localRuntime so runClient can open it.
+	compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+	localRuntime "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+	// YACL is a hard runtime dependency (see fabric.mod.json); compileOnly + localRuntime for dev.
+	compileOnly "dev.isxander:yet-another-config-lib:${project.yacl_version}"
+	localRuntime "dev.isxander:yet-another-config-lib:${project.yacl_version}"
 
 	clientTestImplementation "org.junit.jupiter:junit-jupiter:${project.junit_version}"
 	clientTestRuntimeOnly "org.junit.platform:junit-platform-launcher"

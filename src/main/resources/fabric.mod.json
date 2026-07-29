@@ -3,7 +3,7 @@
 	"id": "chat-translator",
 	"version": "${version}",
 	"name": "Chat Translator",
-	"description": "Automatically translates incoming chat to English and outgoing chat to your target language, fully offline via local OPUS-MT/ONNX models.",
+	"description": "Translates chat on demand: hover incoming lines for English on tooltip, optional outgoing translation. On-device OPUS-MT/ONNX, or BYOK cloud (DeepL, Google) and custom Ollama.",
 	"authors": [
 		"Tanmay"
 	],
@@ -19,12 +19,25 @@
 		],
 		"client": [
 			"com.tanman.chattranslator.client.ChatTranslatorClient"
+		],
+		"modmenu": [
+			"com.tanman.chattranslator.client.config.ModMenuIntegration"
 		]
 	},
+	"mixins": [
+		{
+			"config": "chat-translator.client.mixins.json",
+			"environment": "client"
+		}
+	],
 	"depends": {
 		"fabricloader": ">=0.19.3",
 		"minecraft": "~26.1.2",
 		"java": ">=25",
-		"fabric-api": "*"
+		"fabric-api": "*",
+		"yet_another_config_lib_v3": ">=3.9.1"
+	},
+	"recommends": {
+		"modmenu": "*"
 	}
 }
