@@ -48,4 +48,11 @@ class ProtectedSpansTest {
         ProtectedSpans.Masked masked = ProtectedSpans.mask("{{TAG}}");
         assertEquals("TAG", masked.restore("__ CTPROT _ 0 __"));
     }
+
+    @Test
+    void maskAutoProtectsGamingSlang() {
+        ProtectedSpans.Masked masked = ProtectedSpans.mask("gg nice bedwars game");
+        assertEquals(List.of("gg", "bedwars"), masked.originals());
+        assertEquals("__CTPROT_0__ nice __CTPROT_1__ game", masked.text());
+    }
 }

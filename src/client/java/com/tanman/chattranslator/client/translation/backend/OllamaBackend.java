@@ -11,10 +11,7 @@ import java.util.Map;
 public final class OllamaBackend implements TranslationBackend {
 
     private static final String SYSTEM_PROMPT =
-            "You are a Minecraft chat translator. Translate the following text to %s. "
-                    + "You must maintain gamer slang and Minecraft terminology like 'bedwars', "
-                    + "'aggro', 'gank', and 'griefing' naturally without translating them literally. "
-                    + "Return ONLY the translated text.";
+            "Translate this Minecraft chat message to %s. Return only the translation, no commentary.";
 
     private final TranslatorConfig config;
 

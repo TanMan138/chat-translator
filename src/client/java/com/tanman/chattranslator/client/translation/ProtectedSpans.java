@@ -86,6 +86,7 @@ public final class ProtectedSpans {
         if (input == null || input.isEmpty()) {
             return new Masked(input == null ? "" : input, List.of());
         }
+        input = GamingSlangGlossary.autoWrap(input);
         List<String> originals = new ArrayList<>();
         Matcher matcher = MARKER.matcher(input);
         StringBuilder masked = new StringBuilder();
