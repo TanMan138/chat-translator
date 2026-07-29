@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -69,5 +70,34 @@ class ModelManagerTest {
     void modelDirIsScopedUnderBaseDirByPairKey(@TempDir Path tempDir) {
         ModelManager manager = new ModelManager(tempDir);
         assertEquals(tempDir.resolve("fr-en"), manager.modelDir("fr", "en"));
+    }
+
+    @Test
+    void deletePairRemovesDirectory(@TempDir Path tempDir) throws IOException {
+        ModelManager manager = new ModelManager(tempDir);
+        Path dir = manager.modelDir("en", "ru");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve(ModelFiles.ENCODER), "fake");
+        assertTrue(manager.deletePair("en-ru"));
+        assertFalse(Files.exists(dir));
+    }
+
+    @Test
+    void resolveClearTargetsForLangCode(@TempDir Path tempDir) throws IOException {
+        ModelManager manager = new ModelManager(tempDir);
+        Files.createDirectories(manager.modelDir("en", "ru"));
+        Files.createDirectories(manager.modelDir("ru", "en"));
+        Files.createDirectories(manager.modelDir("en", "fr"));
+
+        assertEquals(List.of("en-ru", "ru-en"), manager.resolveClearTargets("ru"));
+        assertEquals(List.of("en-fr"), manager.resolveClearTargets("en-fr"));
+        assertEquals(3, manager.resolveClearTargets("all").size());
+    }
+
+    @Test
+    void rejectsPathTraversalPairKeys(@TempDir Path tempDir) {
+        ModelManager manager = new ModelManager(tempDir);
+        assertFalse(manager.deletePair("../en-ru"));
+        assertFalse(ModelManager.isSafePairKey("en/ru"));
     }
 }

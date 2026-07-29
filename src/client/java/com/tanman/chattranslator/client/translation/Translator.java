@@ -37,6 +37,32 @@ public class Translator implements AutoCloseable {
     /** Guarded by {@link #lifecycleLock}. */
     private boolean closed;
 
+    /** Whether the ONNX graphs for {@code modelDir} are already in memory. */
+    public boolean isLoaded(Path modelDir) {
+        Path key = modelDir.toAbsolutePath().normalize();
+        return models.containsKey(key);
+    }
+
+    /**
+     * Loads the model into memory without translating. Safe to call off the render
+     * thread so the first real message does not pay the cold-load cost.
+     */
+    public void preload(Path modelDir) {
+        Lock readLock = lifecycleLock.readLock();
+        readLock.lock();
+        try {
+            if (closed) {
+                return;
+            }
+            Path key = modelDir.toAbsolutePath().normalize();
+            models.computeIfAbsent(key, Translator::loadModel);
+        } catch (Exception e) {
+            ChatTranslator.LOGGER.warn("Failed to preload translation model at {}", modelDir, e);
+        } finally {
+            readLock.unlock();
+        }
+    }
+
     /**
      * Translates {@code text} using the model cached in {@code modelDir}.
      *
@@ -78,6 +104,38 @@ public class Translator implements AutoCloseable {
             return MarianMtModel.load(modelDir);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to load translation model at " + modelDir, e);
+        }
+    }
+
+    /**
+     * Unloads one in-memory model (e.g. after its files were deleted from disk).
+     * Does not mark the translator closed — other pairs keep working.
+     */
+    public void unload(Path modelDir) {
+        Lock writeLock = lifecycleLock.writeLock();
+        writeLock.lock();
+        try {
+            Path key = modelDir.toAbsolutePath().normalize();
+            MarianMtModel model = models.remove(key);
+            if (model != null) {
+                model.close();
+            }
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    /** Unloads every in-memory model without shutting the translator down. */
+    public void unloadAll() {
+        Lock writeLock = lifecycleLock.writeLock();
+        writeLock.lock();
+        try {
+            for (MarianMtModel model : models.values()) {
+                model.close();
+            }
+            models.clear();
+        } finally {
+            writeLock.unlock();
         }
     }
 

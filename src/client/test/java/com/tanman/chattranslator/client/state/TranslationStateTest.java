@@ -44,4 +44,14 @@ class TranslationStateTest {
         state.onLanguageDetected("ja");
         assertEquals("ja", state.getCurrentTargetLanguage().orElseThrow());
     }
+
+    @Test
+    void latinOutgoingDefaultsOnAndCanToggle() {
+        TranslationState state = new TranslationState();
+        assertTrue(state.isLatinOutgoing());
+        state.setLatinOutgoing(false);
+        assertFalse(state.isLatinOutgoing());
+        state.setLatinOutgoing(true);
+        assertTrue(state.isLatinOutgoing());
+    }
 }

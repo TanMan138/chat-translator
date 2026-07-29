@@ -89,6 +89,10 @@ final class MarianMtModel implements AutoCloseable {
         // otherwise a partial load leaks native ONNX sessions.
         Deque<AutoCloseable> opened = new ArrayDeque<>();
         try {
+            // Xenova ships precompiled_charsmap: null — native tokenizers aborts the JVM
+            // on that. Must sanitize before HuggingFaceTokenizer.newInstance.
+            TokenizerSanitizer.sanitize(modelDir.resolve(ModelFiles.TOKENIZER));
+
             HuggingFaceTokenizer tokenizer =
                     HuggingFaceTokenizer.newInstance(modelDir.resolve(ModelFiles.TOKENIZER));
             opened.push(tokenizer);

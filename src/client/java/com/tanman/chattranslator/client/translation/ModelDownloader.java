@@ -1,6 +1,11 @@
 package com.tanman.chattranslator.client.translation;
 
+import com.tanman.chattranslator.ChatTranslator;
+import com.tanman.chattranslator.client.LocalNotices;
+
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -8,72 +13,143 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 
 public class ModelDownloader {
 
     private static final String BASE_URL = "https://huggingface.co/Xenova/opus-mt-%s-%s/resolve/main/";
 
-    private final HttpClient client = HttpClient.newHttpClient();
+    /**
+     * Only one language-pair download at a time. Parallel pair downloads (~100 MB each)
+     * saturate disk/network and make the game hitch even when they are off the render
+     * thread (GC + I/O wait).
+     */
+    private static final Semaphore PAIR_SLOT = new Semaphore(1);
+
+    private static final ExecutorService PAIR_QUEUE = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "chat-translator-download");
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    /**
+     * Must follow redirects: Hugging Face {@code /resolve/} URLs return 302/307 to a
+     * CDN. {@link HttpClient#newHttpClient()} defaults to {@link HttpClient.Redirect#NEVER}.
+     */
+    private final HttpClient client = HttpClient.newBuilder()
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .connectTimeout(Duration.ofSeconds(30))
+            .build();
 
     public CompletableFuture<Boolean> download(String sourceLang, String targetLang, Path destDir) {
-        String repoBase = String.format(BASE_URL, sourceLang, targetLang);
-
-        // The Xenova/opus-mt-* repos have no fused "model.onnx"; the export is split
-        // into separate encoder and decoder graphs under onnx/. We take the quantized
-        // variants (~50 MB each) and the non-KV-cache decoder, which is the graph the
-        // greedy loop in MarianMtModel drives.
-        CompletableFuture<Boolean> encoderFuture = fetchToFile(
-                repoBase + "onnx/encoder_model_quantized.onnx", destDir.resolve(ModelFiles.ENCODER));
-        CompletableFuture<Boolean> decoderFuture = fetchToFile(
-                repoBase + "onnx/decoder_model_quantized.onnx", destDir.resolve(ModelFiles.DECODER));
-        CompletableFuture<Boolean> tokenizerFuture = fetchToFile(
-                repoBase + ModelFiles.TOKENIZER, destDir.resolve(ModelFiles.TOKENIZER));
-        // Carries decoder_start_token_id / eos_token_id, which differ per language pair.
-        CompletableFuture<Boolean> generationConfigFuture = fetchToFile(
-                repoBase + ModelFiles.GENERATION_CONFIG, destDir.resolve(ModelFiles.GENERATION_CONFIG));
-
-        return CompletableFuture.allOf(
-                        encoderFuture, decoderFuture, tokenizerFuture, generationConfigFuture)
-                .thenApply(ignored ->
-                        encoderFuture.join()
-                                && decoderFuture.join()
-                                && tokenizerFuture.join()
-                                && generationConfigFuture.join());
+        String pair = sourceLang + "->" + targetLang;
+        return CompletableFuture.supplyAsync(() -> {
+            PAIR_SLOT.acquireUninterruptibly();
+            try {
+                return downloadPair(sourceLang, targetLang, destDir, pair);
+            } finally {
+                PAIR_SLOT.release();
+            }
+        }, PAIR_QUEUE);
     }
 
-    private CompletableFuture<Boolean> fetchToFile(String url, Path dest) {
+    private boolean downloadPair(String sourceLang, String targetLang, Path destDir, String pair) {
+        String repoBase = String.format(BASE_URL, sourceLang, targetLang);
+        LocalNotices.show("Downloading " + pair + " (4 files)…");
+
+        record FileJob(String label, String url, Path dest) {
+        }
+
+        FileJob[] jobs = {
+                new FileJob("encoder", repoBase + "onnx/encoder_model_quantized.onnx",
+                        destDir.resolve(ModelFiles.ENCODER)),
+                new FileJob("decoder", repoBase + "onnx/decoder_model_quantized.onnx",
+                        destDir.resolve(ModelFiles.DECODER)),
+                new FileJob("tokenizer", repoBase + ModelFiles.TOKENIZER,
+                        destDir.resolve(ModelFiles.TOKENIZER)),
+                new FileJob("config", repoBase + ModelFiles.GENERATION_CONFIG,
+                        destDir.resolve(ModelFiles.GENERATION_CONFIG)),
+        };
+
+        // Sequential within a pair: clearer chat progress and less disk thrash than
+        // four parallel ~50 MB writes.
+        for (int i = 0; i < jobs.length; i++) {
+            FileJob job = jobs[i];
+            LocalNotices.show(pair + ": " + job.label() + " (" + (i + 1) + "/4)…");
+            if (!fetchToFile(job.url(), job.dest(), pair, job.label())) {
+                LocalNotices.show(pair + ": failed on " + job.label() + ".");
+                return false;
+            }
+            LocalNotices.show(pair + ": " + job.label() + " done (" + (i + 1) + "/4).");
+        }
+        return true;
+    }
+
+    private boolean fetchToFile(String url, Path dest, String pair, String label) {
         Path tempFile = dest.resolveSibling(dest.getFileName() + ".part");
 
-        // BodyHandlers.ofFile opens the destination file eagerly, before any bytes
-        // arrive, so the parent directory must exist before the request is sent
-        // (not merely before the final move) or the request fails immediately.
         try {
             Files.createDirectories(dest.getParent());
         } catch (IOException e) {
-            return CompletableFuture.completedFuture(false);
+            ChatTranslator.LOGGER.warn("Could not create model directory {}: {}", dest.getParent(), e.toString());
+            return false;
         }
 
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url)).GET().build();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofMinutes(5))
+                .GET()
+                .build();
 
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofFile(tempFile))
-                .thenApply(response -> {
-                    if (response.statusCode() != 200) {
-                        deleteQuietly(tempFile);
-                        return false;
+        try {
+            HttpResponse<InputStream> response =
+                    client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            if (response.statusCode() != 200) {
+                ChatTranslator.LOGGER.warn(
+                        "Model file download failed (HTTP {}): {}",
+                        response.statusCode(), url);
+                deleteQuietly(tempFile);
+                return false;
+            }
+
+            long contentLength = response.headers().firstValueAsLong("Content-Length").orElse(-1L);
+            long lastNoticeNanos = 0L;
+            int lastPct = -1;
+
+            try (InputStream in = response.body();
+                    OutputStream out = Files.newOutputStream(tempFile)) {
+                byte[] buffer = new byte[64 * 1024];
+                long read = 0;
+                int n;
+                while ((n = in.read(buffer)) >= 0) {
+                    out.write(buffer, 0, n);
+                    read += n;
+                    if (contentLength > 0) {
+                        int pct = (int) Math.min(100, (read * 100) / contentLength);
+                        long now = System.nanoTime();
+                        // Chat spam guard: every ~10% or at least every 2s.
+                        if (pct >= lastPct + 10 || now - lastNoticeNanos > 2_000_000_000L) {
+                            LocalNotices.show(pair + " " + label + ": " + pct + "%");
+                            lastPct = pct;
+                            lastNoticeNanos = now;
+                        }
                     }
-                    try {
-                        Files.move(tempFile, dest, StandardCopyOption.REPLACE_EXISTING);
-                        return true;
-                    } catch (IOException e) {
-                        deleteQuietly(tempFile);
-                        return false;
-                    }
-                })
-                .exceptionally(ex -> {
-                    deleteQuietly(tempFile);
-                    return false;
-                });
+                }
+            }
+
+            Files.move(tempFile, dest, StandardCopyOption.REPLACE_EXISTING);
+            if (ModelFiles.TOKENIZER.equals(dest.getFileName().toString())) {
+                TokenizerSanitizer.sanitize(dest);
+            }
+            return true;
+        } catch (Exception e) {
+            ChatTranslator.LOGGER.warn("Model file download error for {}: {}", url, e.toString());
+            deleteQuietly(tempFile);
+            return false;
+        }
     }
 
     private void deleteQuietly(Path path) {
