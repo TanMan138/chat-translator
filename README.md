@@ -4,7 +4,7 @@ A Fabric mod that helps you **read** foreign chat in English and optionally **se
 
 ## Download
 
-Grab the latest jar from the [**Releases**](https://github.com/TanMan138/chat-translator/releases/latest) page and drop it in your `mods/` folder. That is the whole install — no other mods required.
+Grab the latest jar from the [**Releases**](https://github.com/TanMan138/lingo/releases/latest) page and drop it in your `mods/` folder. That is the whole install — no other mods required.
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
@@ -133,7 +133,7 @@ Not every language code has a published on-device model. Missing pairs return HT
 ./gradlew build
 ```
 
-Output jar: `build/libs/chat-translator-1.1.1.jar`
+Output jar: `build/libs/chat-translator-1.1.2.jar`
 
 ```bash
 ./gradlew runClient    # dev client

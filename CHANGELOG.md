@@ -2,6 +2,15 @@
 
 All notable changes to Lingo. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.1.2]
+
+### Changed
+
+- The mod is now called **Lingo** everywhere a player sees it: the mod list entry,
+  the `[Lingo]` chat prefix, the guide, and the settings screen. The mod id, config
+  file, and saved language packs are untouched, so nothing needs reconfiguring.
+- New mod icon.
+
 ## [1.1.1]
 
 ### Fixed
