@@ -60,7 +60,8 @@ dependencies {
 	// actual native ONNX Runtime binaries (a separate artifact from the thin DJL engine
 	// wrapper above) must be included explicitly too, or inference fails at runtime
 	// with UnsatisfiedLinkError despite the engine wrapper class loading fine.
-	runtimeOnly include("com.microsoft.onnxruntime:onnxruntime:1.21.1")
+	// stripOnnxDebugSymbols below drops the macOS debug symbols back out of this one.
+	runtimeOnly include("com.microsoft.onnxruntime:onnxruntime:${project.onnxruntime_version}")
 	implementation include("ai.djl.huggingface:tokenizers:${project.djl_version}")
 	implementation include("com.github.pemistahl:lingua:${project.lingua_version}")
 	// Lingua is written in Kotlin and uses Moshi/Okio for its bundled language-model
@@ -107,6 +108,101 @@ tasks.register('clientTest', Test) {
 
 tasks.named('check') {
 	dependsOn 'clientTest'
+}
+
+// The published onnxruntime jar carries .dSYM debug symbols for its macOS natives:
+// ~31 MB compressed of lldb data that nothing reads at runtime, shipped to every
+// player on every platform. Loom will only nest a real module component, so the
+// symbols are stripped out of the nested jar after the final jar is assembled
+// rather than by repackaging the dependency beforehand.
+tasks.register('stripOnnxDebugSymbols') {
+	description = 'Removes macOS debug symbols from the nested onnxruntime jar.'
+	group = 'build'
+
+	// Loom's remap task is not addressable by name here, so this hangs off assemble
+	// and locates the finished jar by path instead.
+	doLast {
+		def outerJar = layout.buildDirectory
+				.file("libs/${project.name}-${project.version}.jar").get().asFile
+		if (!outerJar.exists()) {
+			throw new GradleException("Expected a built jar at ${outerJar}")
+		}
+		def rewritten = new File(outerJar.parentFile, outerJar.name + ".stripping")
+		def before = outerJar.length()
+		def strippedAny = false
+		def marker = 'META-INF/onnx-symbols-stripped'
+
+		// assemble can run again over an already-stripped jar (an up-to-date build,
+		// or a second invocation). The marker distinguishes that from an upstream
+		// artifact that has stopped shipping symbols, which should be noticed.
+		def alreadyStripped = new java.util.zip.ZipFile(outerJar).withCloseable {
+			it.getEntry(marker) != null
+		}
+		if (alreadyStripped) {
+			logger.info('ONNX debug symbols already stripped')
+			return
+		}
+
+		new java.util.zip.ZipFile(outerJar).withCloseable { outer ->
+			new java.util.zip.ZipOutputStream(rewritten.newOutputStream()).withStream { out ->
+				outer.entries().each { entry ->
+					if (!(entry.name ==~ /META-INF\/jars\/onnxruntime-[^\/]+\.jar/)) {
+						out.putNextEntry(new java.util.zip.ZipEntry(entry.name))
+						if (!entry.directory) {
+							outer.getInputStream(entry).withStream { it.transferTo(out) }
+						}
+						out.closeEntry()
+						return
+					}
+
+					// Rewrite the nested jar through a temp file: holding a ~130 MB
+					// archive in memory would blow the build JVM's heap.
+					def slim = File.createTempFile("onnxruntime-slim", ".jar")
+					try {
+						new java.util.zip.ZipOutputStream(slim.newOutputStream()).withStream { nestedOut ->
+							outer.getInputStream(entry).withStream { raw ->
+								def nestedIn = new java.util.zip.ZipInputStream(raw)
+								def nested
+								while ((nested = nestedIn.nextEntry) != null) {
+									if (nested.name.contains('.dSYM/')) {
+										strippedAny = true
+										continue
+									}
+									nestedOut.putNextEntry(new java.util.zip.ZipEntry(nested.name))
+									nestedIn.transferTo(nestedOut)
+									nestedOut.closeEntry()
+								}
+							}
+						}
+						out.putNextEntry(new java.util.zip.ZipEntry(entry.name))
+						slim.withInputStream { it.transferTo(out) }
+						out.closeEntry()
+					} finally {
+						slim.delete()
+					}
+				}
+
+				out.putNextEntry(new java.util.zip.ZipEntry(marker))
+				out.closeEntry()
+			}
+		}
+
+		if (!strippedAny) {
+			// Better to fail than to silently ship the symbols again if the upstream
+			// artifact ever stops carrying them under this path.
+			rewritten.delete()
+			throw new GradleException("No .dSYM entries found in the nested onnxruntime jar")
+		}
+
+		rewritten.renameTo(outerJar)
+		logger.lifecycle(String.format(
+				"Stripped ONNX debug symbols: %.1f MB -> %.1f MB",
+				before / 1048576.0, outerJar.length() / 1048576.0))
+	}
+}
+
+tasks.named('assemble') {
+	finalizedBy 'stripOnnxDebugSymbols'
 }
 
 processResources {

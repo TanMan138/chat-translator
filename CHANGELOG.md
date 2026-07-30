@@ -2,6 +2,14 @@
 
 All notable changes to Lingo. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.1.4]
+
+### Changed
+
+- The download is 31 MB smaller (257 MB → 224 MB). The bundled ONNX Runtime shipped
+  macOS debugger symbols that nothing reads at runtime; they are now stripped from
+  the jar. Native libraries for all five supported platforms are unchanged.
+
 ## [1.1.3]
 
 ### Changed
