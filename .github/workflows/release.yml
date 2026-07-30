@@ -89,6 +89,11 @@ jobs:
       # Uploads the same jar to CurseForge and Modrinth. Each platform is skipped
       # when its token secret is missing, so this stays green before the listings
       # exist and starts working the moment the secrets are added.
+      #
+      # MODRINTH_TOKEN expires 2026-11-01. Past that date this step fails with a
+      # plain authorization error that never mentions expiry, which reads like a
+      # wrong project id — regenerate the PAT (scopes: create versions, read
+      # projects) and replace the secret. CurseForge tokens do not expire.
       - name: publish to curseforge and modrinth
         uses: Kir-Antipov/mc-publish@v3.3
         with:
