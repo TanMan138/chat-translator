@@ -37,7 +37,7 @@ No setup needed for most players. Leave the default **“On your computer”** m
 | Method | Best for | Good | Not so good |
 |---|---|---|---|
 | **On your computer** (default) | Most players | Free after download, works offline | First use downloads files |
-| **DeepL** (your API key) | Quality translations | Very accurate | Needs deepl.com account + internet |
+| **DeepL** (your API key) | Best quality | Very accurate | Paid — no free monthly plan for new signups |
 | **Google Translate** (your API key) | Many languages | Wide language support | Needs a Google Cloud key + internet |
 | **Langbly** (your API key) | Free tier, EU data residency | 130+ languages, fast signup | Needs a langbly.com key + internet |
 | **Your own server (Ollama)** | Tech-savvy / self-hosting | You control it | You must run Ollama yourself |

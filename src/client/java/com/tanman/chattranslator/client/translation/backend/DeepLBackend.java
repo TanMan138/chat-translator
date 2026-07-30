@@ -38,7 +38,7 @@ public final class DeepLBackend implements TranslationBackend {
         }
 
         try {
-            String host = config.deeplUseFreeApi ? "api-free.deepl.com" : "api.deepl.com";
+            String host = resolveHost(apiKey, config.deeplUseFreeApi);
             Map<String, String> form = new HashMap<>();
             form.put("text", text);
             form.put("target_lang", toDeepLCode(targetLang));
@@ -55,6 +55,24 @@ public final class DeepLBackend implements TranslationBackend {
             ChatTranslator.LOGGER.warn("DeepL translation failed", error);
             return TranslationResult.failure(text);
         }
+    }
+
+    /**
+     * DeepL keys from the old API Free plan end in {@code :fx} and must go to a
+     * different host; everything else belongs on the paid host. The suffix is part
+     * of the key itself, so trust it over the setting — players routinely leave a
+     * checkbox at whatever it defaulted to and then see only an auth error.
+     *
+     * @param preferFreeHost the player's setting, used only when the key says nothing
+     */
+    static String resolveHost(String apiKey, boolean preferFreeHost) {
+        if (apiKey.endsWith(":fx")) {
+            return "api-free.deepl.com";
+        }
+        if (apiKey.contains(":")) {
+            return "api.deepl.com";
+        }
+        return preferFreeHost ? "api-free.deepl.com" : "api.deepl.com";
     }
 
     static String toDeepLCode(String lang) {

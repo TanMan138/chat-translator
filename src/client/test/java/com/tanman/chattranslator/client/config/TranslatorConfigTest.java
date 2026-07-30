@@ -19,7 +19,9 @@ class TranslatorConfigTest {
         assertEquals(TranslationBackendType.ON_DEVICE, config.backend);
         assertEquals(CloudProvider.DEEPL, config.cloudProvider);
         assertEquals("qwen2.5:1.5b", config.ollamaModel);
-        assertTrue(config.deeplUseFreeApi);
+        // DeepL's API Free plan is closed to new signups, so a fresh install is far
+        // more likely to be holding a paid key than a grandfathered free one.
+        assertFalse(config.deeplUseFreeApi);
         assertEquals("", config.langblyApiKey);
         assertFalse(config.langblyUseEuEndpoint);
         assertFalse(config.isRemoteBackend());

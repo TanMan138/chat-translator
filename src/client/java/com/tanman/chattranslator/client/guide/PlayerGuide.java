@@ -61,8 +61,10 @@ public final class PlayerGuide {
                       Set in Config → How to translate.
                     
                     DEEPL (you bring your own API key)
-                      Good: high quality; easy signup at deepl.com.
-                      Bad: needs internet and a key you pay for or get free tier.
+                      Good: the best quality of any option here.
+                      Bad: needs internet, and it costs money. DeepL closed its free
+                      monthly plan to new signups — you now get a one-off batch of
+                      characters to try, then you pay.
                       Set in Config → Online services → DeepL.
                     
                     GOOGLE TRANSLATE (you bring your own API key)

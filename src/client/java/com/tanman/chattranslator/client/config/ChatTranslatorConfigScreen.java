@@ -147,18 +147,26 @@ public final class ChatTranslatorConfigScreen {
                         .option(Option.<String>createBuilder()
                                 .name(Component.literal("DeepL API key"))
                                 .description(OptionDescription.of(Component.literal(
-                                        "Step 1: Create a free or paid account at deepl.com.\n"
+                                        "Step 1: Create an API account at deepl.com.\n"
                                                 + "Step 2: Copy your API key from their website.\n"
-                                                + "Step 3: Paste it here. Leave \"free API\" on for free keys.")))
+                                                + "Step 3: Paste it here, then set the key type below.\n"
+                                                + "DeepL no longer hands out a free monthly allowance to new "
+                                                + "accounts — their Developer plan gives a one-off batch of "
+                                                + "characters, after which translating costs money. "
+                                                + "\"On your computer\" stays free forever.")))
                                 .binding("", () -> config.deeplApiKey, value -> config.deeplApiKey = value)
                                 .controller(StringControllerBuilder::create)
                                 .build())
                         .option(Option.<Boolean>createBuilder()
-                                .name(Component.literal("I have a free DeepL key"))
+                                .name(Component.literal("My key is an older API Free key"))
                                 .description(OptionDescription.of(Component.literal(
-                                        "Turn this on if you signed up for DeepL's free plan. "
-                                                + "Turn off if you pay for DeepL Pro.")))
-                                .binding(true, () -> config.deeplUseFreeApi, value -> config.deeplUseFreeApi = value)
+                                        "On: the key came from DeepL's old API Free plan, which is "
+                                                + "closed to new signups but still works if you already "
+                                                + "have one. Sends to api-free.deepl.com.\n"
+                                                + "Off: any newer key (Developer, Growth, Pro). "
+                                                + "If translations fail with an authorization error, "
+                                                + "try flipping this.")))
+                                .binding(false, () -> config.deeplUseFreeApi, value -> config.deeplUseFreeApi = value)
                                 .controller(TickBoxControllerBuilder::create)
                                 .build())
                         .build())

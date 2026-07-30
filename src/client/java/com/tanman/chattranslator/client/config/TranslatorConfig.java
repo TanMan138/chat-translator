@@ -44,7 +44,13 @@ public final class TranslatorConfig {
     public CloudProvider cloudProvider = CloudProvider.DEEPL;
 
     public String deeplApiKey = "";
-    public boolean deeplUseFreeApi = true;
+
+    /**
+     * Only consulted for keys that carry no plan suffix — a {@code :fx} key picks the
+     * free host on its own. Defaults off because DeepL's API Free plan is closed to
+     * new signups, so a fresh install is far more likely to hold a paid key.
+     */
+    public boolean deeplUseFreeApi = false;
     public String googleApiKey = "";
     public String langblyApiKey = "";
     public boolean langblyUseEuEndpoint = false;
