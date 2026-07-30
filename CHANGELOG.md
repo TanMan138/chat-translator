@@ -2,6 +2,13 @@
 
 All notable changes to Lingo. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.1.3]
+
+### Changed
+
+- Releases are now published to CurseForge and Modrinth automatically from the
+  same tag that builds the jar. No player-facing changes.
+
 ## [1.1.2]
 
 ### Changed

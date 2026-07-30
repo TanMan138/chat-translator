@@ -133,7 +133,7 @@ Not every language code has a published on-device model. Missing pairs return HT
 ./gradlew build
 ```
 
-Output jar: `build/libs/chat-translator-1.1.2.jar`
+Output jar: `build/libs/chat-translator-1.1.3.jar`
 
 ```bash
 ./gradlew runClient    # dev client
