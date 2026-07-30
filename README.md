@@ -153,6 +153,10 @@ git push origin v1.2.0
 
 The tag supplies `-Pmod_version`, so `gradle.properties` does not have to match. Release notes are taken from the matching `CHANGELOG.md` section. `workflow_dispatch` can also build a version manually.
 
+The same tag also uploads to CurseForge and Modrinth. That step needs four repository settings — secrets `CURSEFORGE_TOKEN` and `MODRINTH_TOKEN`, variables `CURSEFORGE_PROJECT_ID` and `MODRINTH_PROJECT_ID`. A platform whose token is missing is skipped rather than failing the run.
+
+**The Modrinth token expires 1 November 2026.** After that date uploads fail with an authorization error that does not mention expiry — regenerate the PAT at [modrinth.com/settings/pats](https://modrinth.com/settings/pats) (scopes: create versions, read projects) and replace the secret.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
