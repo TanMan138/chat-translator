@@ -72,7 +72,7 @@ jobs:
             grab { print }
           ' CHANGELOG.md > release-notes.md || true
           if [ ! -s release-notes.md ]; then
-            echo "Chat Translator $version for Minecraft 26.1.2 (Fabric)." > release-notes.md
+            echo "Lingo $version for Minecraft 26.1.2 (Fabric)." > release-notes.md
           fi
 
       - name: publish release
@@ -80,6 +80,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ steps.version.outputs.tag }}" \
-            --title "Chat Translator ${{ steps.version.outputs.version }}" \
+            --title "Lingo ${{ steps.version.outputs.version }}" \
             --notes-file release-notes.md \
             build/libs/chat-translator-${{ steps.version.outputs.version }}.jar
