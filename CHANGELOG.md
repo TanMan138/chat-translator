@@ -2,6 +2,16 @@
 
 All notable changes to Chat Translator. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.1.1]
+
+### Fixed
+
+- On-device translation could fail with `ServiceConfigurationError: HfZooProvider not
+  a subtype`, after which every later translation reported
+  `Could not initialize class ai.djl.repository.zoo.DefaultModelZoo` until the game
+  was restarted. DJL discovers its engines through the thread context classloader,
+  which our inference threads did not carry; model loading now installs it explicitly.
+
 ## [1.1.0]
 
 ### Added

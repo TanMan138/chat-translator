@@ -85,6 +85,12 @@ final class MarianMtModel implements AutoCloseable {
      * @throws Exception if any file is missing or fails to load
      */
     static MarianMtModel load(Path modelDir) throws Exception {
+        // DJL's engine/zoo discovery reads the thread context classloader, and inference
+        // runs on pool threads that do not carry ours. See ModClassLoader.
+        return ModClassLoader.call(() -> loadWithModClassLoader(modelDir));
+    }
+
+    private static MarianMtModel loadWithModClassLoader(Path modelDir) throws Exception {
         // Anything successfully opened before a later failure must still be released,
         // otherwise a partial load leaks native ONNX sessions.
         Deque<AutoCloseable> opened = new ArrayDeque<>();
