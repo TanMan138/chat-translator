@@ -45,6 +45,8 @@ jobs:
           esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          # Single source of truth for which Minecraft version this jar targets.
+          echo "minecraft=$(sed -n 's/^minecraft_version=//p' gradle.properties)" >> "$GITHUB_OUTPUT"
 
       - name: validate gradle wrapper
         uses: gradle/actions/wrapper-validation@v6
@@ -83,3 +85,34 @@ jobs:
             --title "Lingo ${{ steps.version.outputs.version }}" \
             --notes-file release-notes.md \
             build/libs/chat-translator-${{ steps.version.outputs.version }}.jar
+
+      # Uploads the same jar to CurseForge and Modrinth. Each platform is skipped
+      # when its token secret is missing, so this stays green before the listings
+      # exist and starts working the moment the secrets are added.
+      - name: publish to curseforge and modrinth
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          files: build/libs/chat-translator-${{ steps.version.outputs.version }}.jar
+          name: Lingo ${{ steps.version.outputs.version }}
+          version: ${{ steps.version.outputs.version }}
+          version-type: release
+          changelog-file: release-notes.md
+
+          loaders: fabric
+          game-versions: ${{ steps.version.outputs.minecraft }}
+          java: 25
+
+          # Dependencies are read from fabric.mod.json, so YACL and Mod Menu stay
+          # optional there and are published as optional here.
+          dependencies: |
+            fabric-api(required)
+            yet_another_config_lib_v3(optional)
+            modmenu(optional)
+
+          retry-attempts: 2
