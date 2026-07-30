@@ -1,4 +1,4 @@
-# Chat Translator
+# Lingo
 
 A Fabric mod that helps you **read** foreign chat in English and optionally **send** translated replies.
 
@@ -50,7 +50,7 @@ No setup needed for most players. Leave the default **“On your computer”** m
 
 - `/translate guide` — step-by-step guide with all options
 - `/translate help` — short cheat sheet
-- **Mods → Chat Translator → Config → Start here** (needs Mod Menu + YACL)
+- **Mods → Lingo → Config → Start here** (needs Mod Menu + YACL)
 
 ### Quick commands
 
@@ -133,7 +133,7 @@ Not every language code has a published on-device model. Missing pairs return HT
 ./gradlew build
 ```
 
-Output jar: `build/libs/chat-translator-1.1.0.jar`
+Output jar: `build/libs/chat-translator-1.1.1.jar`
 
 ```bash
 ./gradlew runClient    # dev client

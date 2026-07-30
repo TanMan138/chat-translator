@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Chat Translator. Versions follow [semantic versioning](https://semver.org/).
+All notable changes to Lingo. Versions follow [semantic versioning](https://semver.org/).
 
 ## [1.1.1]
 

@@ -14,7 +14,7 @@ import net.minecraft.network.chat.Component;
  */
 public final class GuideScreen extends Screen {
 
-    private static final Component TITLE = Component.literal("Chat Translator Guide");
+    private static final Component TITLE = Component.literal("Lingo Guide");
 
     private final Screen parent;
     private final HeaderAndFooterLayout layout = new HeaderAndFooterLayout(this);

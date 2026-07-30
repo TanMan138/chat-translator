@@ -39,7 +39,7 @@ public final class ChatTranslatorConfigScreen {
         config.normalize();
 
         return YetAnotherConfigLib.createBuilder()
-                .title(Component.literal("Chat Translator"))
+                .title(Component.literal("Lingo"))
                 .save(() -> {
                     config.captureFrom(state);
                     config.save();

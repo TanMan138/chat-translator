@@ -15,7 +15,7 @@ public final class PlayerGuide {
     }
 
     private static final Page[] PAGES = {
-            new Page("What Chat Translator does",
+            new Page("What Lingo does",
                     """
                     This mod helps you read and send chat in other languages.
 
@@ -26,7 +26,7 @@ public final class PlayerGuide {
                     before it is sent — if you turn that on in settings.
 
                     Open this guide anytime: /translate guide
-                    Or: Mods → Chat Translator → Config → Start here."""),
+                    Or: Mods → Lingo → Config → Start here."""),
             new Page("How to read chat",
                     """
                     Normally you do nothing: a foreign line shows up as
@@ -128,7 +128,7 @@ public final class PlayerGuide {
             for step-by-step help and how to use DeepL, Google, or your own server.""";
 
     public static final String HELP_CHEAT_SHEET = """
-            Chat Translator — quick help
+            Lingo — quick help
             Read: foreign chat shows English automatically; hover a new language once to save it
             Send: /translate <code> then type English (e.g. /translate ru)
             /translate guide — full guide  |  /translate status — current settings

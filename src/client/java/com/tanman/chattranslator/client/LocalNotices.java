@@ -20,7 +20,7 @@ public final class LocalNotices {
         minecraft.execute(() -> {
             if (minecraft.gui != null) {
                 minecraft.gui.getChat().addClientSystemMessage(
-                        Component.literal("[Chat Translator] " + text)
+                        Component.literal("[Lingo] " + text)
                                 .withStyle(ChatFormatting.GRAY));
             }
         });

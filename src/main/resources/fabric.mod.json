@@ -2,8 +2,8 @@
 	"schemaVersion": 1,
 	"id": "chat-translator",
 	"version": "${version}",
-	"name": "Chat Translator",
-	"description": "Translates chat on demand: hover incoming lines for English on tooltip, optional outgoing translation. On-device OPUS-MT/ONNX, or BYOK cloud (DeepL, Google) and custom Ollama.",
+	"name": "Lingo",
+	"description": "Reads foreign chat in English automatically and translates your replies back. Runs on your own machine with OPUS-MT/ONNX, or bring your own key for DeepL, Google, or Langbly, or point it at your own Ollama server.",
 	"authors": [
 		"Tanmay"
 	],

@@ -41,7 +41,7 @@ public class TranslateCommand {
                             .executes(ctx -> {
                                 openGuide(ctx.getSource());
                                 ctx.getSource().sendFeedback(Component.literal(
-                                        "Opening the Chat Translator guide…"));
+                                        "Opening the Lingo guide…"));
                                 return 1;
                             }))
                     .then(ClientCommands.literal("latin")
@@ -111,7 +111,7 @@ public class TranslateCommand {
                             .executes(ctx -> {
                                 if (!ChatTranslatorServices.ready()) {
                                     ctx.getSource().sendFeedback(Component.literal(
-                                            "Chat Translator is still loading."));
+                                            "Lingo is still loading."));
                                     return 1;
                                 }
                                 ctx.getSource().sendFeedback(Component.literal(
@@ -210,7 +210,7 @@ public class TranslateCommand {
 
     private static int setReadMode(FabricClientCommandSource source, boolean auto) {
         if (!ChatTranslatorServices.ready()) {
-            source.sendFeedback(Component.literal("Chat Translator is still loading."));
+            source.sendFeedback(Component.literal("Lingo is still loading."));
             return 0;
         }
         TranslatorConfig config = ChatTranslatorServices.config();
@@ -235,7 +235,7 @@ public class TranslateCommand {
             sb.append("  ").append(name).append('\n');
         }
         sb.append("API keys and the Ollama address live in config/chat-translator.json "
-                + "(or Mods → Chat Translator → Config with Mod Menu + YACL).");
+                + "(or Mods → Lingo → Config with Mod Menu + YACL).");
         return sb.toString();
     }
 
@@ -244,7 +244,7 @@ public class TranslateCommand {
 
     private static int setBackend(FabricClientCommandSource source, String name) {
         if (!ChatTranslatorServices.ready()) {
-            source.sendFeedback(Component.literal("Chat Translator is still loading."));
+            source.sendFeedback(Component.literal("Lingo is still loading."));
             return 0;
         }
         TranslatorConfig config = ChatTranslatorServices.config();
@@ -284,7 +284,7 @@ public class TranslateCommand {
     private static int download(
             FabricClientCommandSource source, ModelManager modelManager, String lang) {
         if (!ChatTranslatorServices.ready()) {
-            source.sendFeedback(Component.literal("Chat Translator is still loading."));
+            source.sendFeedback(Component.literal("Lingo is still loading."));
             return 0;
         }
         if (!lang.matches("[a-z]{2,3}")) {

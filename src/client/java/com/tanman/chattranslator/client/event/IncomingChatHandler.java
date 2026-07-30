@@ -58,7 +58,7 @@ public final class IncomingChatHandler {
 
     private static final String TARGET_LANGUAGE = "en";
 
-    private static final String HINT = "Hover to translate → English (Chat Translator)";
+    private static final String HINT = "Hover to translate → English (Lingo)";
 
     private static final Pattern SENDER_PREFIX =
             Pattern.compile("^\\s*(<[^<>]{1,32}>|\\[[^\\[\\]]{1,32}])\\s*");
