@@ -38,11 +38,13 @@ No setup needed for most players. Leave the default **“On your computer”** m
 |---|---|---|---|
 | **On your computer** (default) | Most players | Free after download, works offline | First use downloads files |
 | **DeepL** (your API key) | Best quality | Very accurate | Paid — no free monthly plan for new signups |
-| **Google Translate** (your API key) | Many languages | Wide language support | Needs a Google Cloud key + internet |
-| **Langbly** (your API key) | Free tier, EU data residency | 130+ languages, fast signup | Needs a langbly.com key + internet |
+| **Google Translate** (your API key) | Many languages | 500k characters/month included | Bills your card past that, silently |
+| **Langbly** (your API key) | Easy signup, EU data residency | 500k characters/month included, 130+ languages | Bills automatically past that ($5/1M) |
 | **Your own server (Ollama)** | Tech-savvy / self-hosting | You control it | You must run Ollama yourself |
 
 **Langbly users:** In Config, pick **Online service** → **Langbly**, paste your [langbly.com](https://langbly.com/docs/) key, and optionally turn on **Keep my data in the EU**. Do not select **Google Translate** for a Langbly key — Google rejects it with `API key not valid`.
+
+**Spending:** Google and Langbly both include 500,000 characters a month and then charge your card automatically — neither stops on its own. The mod keeps a running estimate and switches back to translating on your computer once you hit the budget in Config (500,000 by default). Check it with `/translate usage`. It counts only what this mod sent, so treat your provider's dashboard as the real number.
 
 **Other services:** ChatGPT websites and LibreTranslate are **not** built-in buttons. See `/translate guide` in-game for details.
 
@@ -112,6 +114,7 @@ Without YACL and Mod Menu the mod still works fully — every setting has a `/tr
 | `/translate read auto\|hover` | Incoming chat: translate on arrival, or on hover |
 | `/translate download <langcode>` | Fetch both directions for a language now |
 | `/translate backend <name>` | `ondevice`, `deepl`, `google`, `langbly`, `ollama` |
+| `/translate usage` | Estimated paid characters used this month |
 | `/translate models` | List cached language pairs |
 | `/translate clear <en-ru\|ru\|all>` | Delete cached models |
 
@@ -133,7 +136,7 @@ Not every language code has a published on-device model. Missing pairs return HT
 ./gradlew build
 ```
 
-Output jar: `build/libs/chat-translator-1.1.4.jar`
+Output jar: `build/libs/chat-translator-1.1.5.jar`
 
 ```bash
 ./gradlew runClient    # dev client

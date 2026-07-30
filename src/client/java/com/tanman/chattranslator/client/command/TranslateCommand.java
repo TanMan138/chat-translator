@@ -10,6 +10,8 @@ import com.tanman.chattranslator.client.guide.PlayerGuide;
 import com.tanman.chattranslator.client.state.TranslationState;
 import com.tanman.chattranslator.client.translation.ModelManager;
 import com.tanman.chattranslator.client.translation.Translator;
+import com.tanman.chattranslator.client.translation.UsageTracker;
+import com.tanman.chattranslator.client.translation.backend.TranslationService;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -17,6 +19,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 
 public class TranslateCommand {
@@ -76,6 +79,11 @@ public class TranslateCommand {
                                     .executes(ctx -> setReadMode(ctx.getSource(), true)))
                             .then(ClientCommands.literal("hover")
                                     .executes(ctx -> setReadMode(ctx.getSource(), false))))
+                    .then(ClientCommands.literal("usage")
+                            .executes(ctx -> {
+                                ctx.getSource().sendFeedback(Component.literal(usageReport()));
+                                return 1;
+                            }))
                     .then(ClientCommands.literal("backend")
                             .executes(ctx -> {
                                 ctx.getSource().sendFeedback(Component.literal(backendHelp()));
@@ -198,7 +206,39 @@ public class TranslateCommand {
                 || lang.equals("guide") || lang.equals("status")
                 || lang.equals("models") || lang.equals("clear")
                 || lang.equals("read") || lang.equals("backend")
-                || lang.equals("download");
+                || lang.equals("download") || lang.equals("usage");
+    }
+
+    private static String usageReport() {
+        if (!ChatTranslatorServices.ready()) {
+            return "Lingo is still loading.";
+        }
+        TranslatorConfig config = ChatTranslatorServices.config();
+        UsageTracker usage = ChatTranslatorServices.translationService().usage();
+        String month = TranslationService.currentMonth();
+        Map<String, Long> counts = usage.snapshot();
+
+        StringBuilder sb = new StringBuilder("Online translation used this month (")
+                .append(month).append("):\n");
+        if (counts.isEmpty()) {
+            sb.append("  nothing — you are translating on your computer.\n");
+        } else {
+            counts.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> sb.append("  ")
+                            .append(entry.getKey())
+                            .append(": ~")
+                            .append(entry.getValue())
+                            .append(" characters\n"));
+        }
+        sb.append(config.monthlyCharacterBudget > 0
+                ? "Budget: " + config.monthlyCharacterBudget
+                + " characters, then it switches to your computer."
+                : "Budget: off — the mod will not stop you going over.");
+        sb.append("\nThis is an estimate of what this mod sent. It cannot see the same "
+                + "key used elsewhere, and your provider's billing month may differ. "
+                + "Check your provider's dashboard for the real number.");
+        return sb.toString();
     }
 
     private static String readModeLabel() {

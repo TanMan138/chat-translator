@@ -11,6 +11,7 @@ import com.tanman.chattranslator.client.translation.ModelManager;
 import com.tanman.chattranslator.client.translation.Translator;
 import com.tanman.chattranslator.client.translation.backend.TranslationService;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.file.Path;
@@ -41,5 +42,8 @@ public class ChatTranslatorClient implements ClientModInitializer {
 		IncomingChatHandler.register(state, detector, translationService, config);
 		OutgoingChatHandler.register(state, modelManager, downloader, translator, translationService, config);
 		TranslateCommand.register(state, modelManager, translator);
+
+		// Usage is written in batches, so the tail end would be lost on quit.
+		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> translationService.saveUsage());
 	}
 }

@@ -7,9 +7,11 @@ import com.tanman.chattranslator.client.config.TranslatorConfig;
 import com.tanman.chattranslator.client.translation.ModelDownloader;
 import com.tanman.chattranslator.client.translation.ModelManager;
 import com.tanman.chattranslator.client.translation.TranslationCache;
+import com.tanman.chattranslator.client.translation.UsageTracker;
 import com.tanman.chattranslator.client.translation.TranslationResult;
 import com.tanman.chattranslator.client.translation.Translator;
 
+import java.time.YearMonth;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,7 +23,14 @@ public final class TranslationService {
 
     private static final Set<String> MISSING_CONFIG_NOTICES = ConcurrentHashMap.newKeySet();
 
+    /** Characters to let accumulate before rewriting the config file. */
+    private static final int SAVE_EVERY_CHARACTERS = 2_000;
+
     private final TranslationCache cache = new TranslationCache();
+
+    private final UsageTracker usage;
+
+    private int unsavedCharacters;
 
     /**
      * Which backend produced what is currently cached. Providers disagree, so the
@@ -43,6 +52,8 @@ public final class TranslationService {
             Translator translator
     ) {
         this.config = config;
+        config.normalize();
+        this.usage = new UsageTracker(config.usageMonth, config.usageByProvider);
         this.onDevice = new OnDeviceBackend(modelManager, downloader, translator);
         this.deepL = new DeepLBackend(config);
         this.google = new GoogleTranslateBackend(config);
@@ -80,10 +91,12 @@ public final class TranslationService {
         if (!validateConfig(backend)) {
             return CompletableFuture.completedFuture(TranslationResult.failure(text));
         }
+        backend = applyUsageBudget(backend, text);
+        TranslationBackend chosen = backend;
         return cache.get(sourceLang, targetLang, text)
                 .map(hit -> CompletableFuture.completedFuture(
                         TranslationResult.success(hit, text)))
-                .orElseGet(() -> backend.translate(text, sourceLang, targetLang)
+                .orElseGet(() -> chosen.translate(text, sourceLang, targetLang)
                         .thenApply(result -> {
                             if (result != null && result.success()) {
                                 cache.put(sourceLang, targetLang, text, result.translatedText());
@@ -103,6 +116,86 @@ public final class TranslationService {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Counts what is about to be sent to a paid service and, once the player's
+     * monthly budget is used up, hands the work to the on-device engine instead.
+     *
+     * <p>Falling back beats refusing: chat keeps being translated, for free, and the
+     * player is told once rather than silently losing translations.
+     */
+    private TranslationBackend applyUsageBudget(TranslationBackend backend, String text) {
+        String provider = providerKey(backend);
+        if (provider == null || text == null || text.isEmpty()) {
+            return backend;
+        }
+
+        int budget = config.monthlyCharacterBudget;
+        String month = currentMonth();
+        if (budget > 0 && usage.used(provider, month) >= budget) {
+            noticeOnce("budget-" + provider + "-" + month,
+                    "You have used this month's " + budget + "-character budget for "
+                            + provider + ". Translating on your computer instead — free, "
+                            + "and no surprise bill. Raise or clear the budget in Config.");
+            return onDevice;
+        }
+
+        long used = usage.record(provider, month, text.length());
+        persistUsage(text.length());
+
+        switch (UsageTracker.level(used, budget)) {
+            case WARN_80 -> noticeOnce("budget80-" + provider + "-" + month,
+                    "Used about " + used + " of " + budget + " characters on " + provider
+                            + " this month (roughly 80%).");
+            case WARN_95 -> noticeOnce("budget95-" + provider + "-" + month,
+                    "Used about " + used + " of " + budget + " characters on " + provider
+                            + " this month (roughly 95%). Past the budget the mod switches "
+                            + "to translating on your computer.");
+            default -> {
+            }
+        }
+        return backend;
+    }
+
+    /** Usage is an estimate, so it is written in batches rather than per message. */
+    private void persistUsage(int addedCharacters) {
+        unsavedCharacters += addedCharacters;
+        if (unsavedCharacters < SAVE_EVERY_CHARACTERS) {
+            return;
+        }
+        unsavedCharacters = 0;
+        saveUsage();
+    }
+
+    /** Flushes the running estimate into the config file. */
+    public void saveUsage() {
+        config.usageMonth = usage.month();
+        config.usageByProvider = usage.snapshot();
+        config.save();
+    }
+
+    public UsageTracker usage() {
+        return usage;
+    }
+
+    public static String currentMonth() {
+        return YearMonth.now().toString();
+    }
+
+    /** Null for backends that cost nothing, so only paid traffic is counted. */
+    static String providerKey(TranslationBackend backend) {
+        if (backend instanceof DeepLBackend) {
+            return "DeepL";
+        }
+        if (backend instanceof GoogleTranslateBackend) {
+            return "Google";
+        }
+        if (backend instanceof LangblyBackend) {
+            return "Langbly";
+        }
+        // On-device costs nothing, and a self-hosted Ollama is the player's own box.
+        return null;
     }
 
     public void clearCache() {

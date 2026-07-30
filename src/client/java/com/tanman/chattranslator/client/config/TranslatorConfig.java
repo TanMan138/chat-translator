@@ -12,6 +12,8 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Persisted user preferences under {@code config/chat-translator.json}.
@@ -56,6 +58,21 @@ public final class TranslatorConfig {
     public boolean langblyUseEuEndpoint = false;
     public String customEndpointUrl = "";
     public String ollamaModel = "qwen2.5:1.5b";
+
+    /**
+     * Characters per month the active online service may be sent before the mod
+     * falls back to on-device translation. {@code 0} disables the limit.
+     *
+     * <p>500,000 matches the monthly allowance Google and Langbly both include, and
+     * both of those bill automatically past it rather than stopping.
+     */
+    public int monthlyCharacterBudget = 500_000;
+
+    /** Calendar month the counters below belong to, as {@code yyyy-MM}. */
+    public String usageMonth = "";
+
+    /** Estimated characters sent per provider this month. See {@code UsageTracker}. */
+    public Map<String, Long> usageByProvider = new HashMap<>();
 
     public static Path path() {
         return FabricLoader.getInstance().getConfigDir().resolve("chat-translator.json");
@@ -128,6 +145,15 @@ public final class TranslatorConfig {
         }
         if (ollamaModel == null || ollamaModel.isBlank()) {
             ollamaModel = "qwen2.5:1.5b";
+        }
+        if (usageMonth == null) {
+            usageMonth = "";
+        }
+        if (usageByProvider == null) {
+            usageByProvider = new HashMap<>();
+        }
+        if (monthlyCharacterBudget < 0) {
+            monthlyCharacterBudget = 0;
         }
     }
 }

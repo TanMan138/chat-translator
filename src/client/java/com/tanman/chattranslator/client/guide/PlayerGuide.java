@@ -68,14 +68,20 @@ public final class PlayerGuide {
                       Set in Config → Online services → DeepL.
                     
                     GOOGLE TRANSLATE (you bring your own API key)
-                      Good: many languages.
+                      Good: many languages; 500,000 characters a month included.
                       Bad: needs internet and a Google Cloud key (starts with AIza).
+                      Past 500,000 it charges your card without asking.
                       Set in Config → Online services → Google.
-                    
+
                     LANGBLY (you bring your own API key)
-                      Good: free tier, 130+ languages, 30-second signup, optional EU-only servers.
-                      Bad: needs internet and a langbly.com account.
+                      Good: 130+ languages, 30-second signup, optional EU-only servers,
+                      500,000 characters a month included.
+                      Bad: needs internet, and past 500,000 it bills automatically.
                       Set in Config → Online services → Langbly.
+
+                    The mod counts what it sends and switches back to your computer
+                    when you reach the budget in Config, so you are not billed by
+                    surprise. Check it any time with /translate usage.
                     
                     YOUR OWN SERVER (Ollama)
                       Good: you control everything.
@@ -106,6 +112,7 @@ public final class PlayerGuide {
                     /translate backend deepl — switch translation method
                     /translate latin       — send romanized letters (default, safest)
                     /translate native      — send real foreign letters
+                    /translate usage       — how much paid translation you have used
                     /translate models      — list downloaded language packs
                     /translate clear all   — delete saved downloads
 

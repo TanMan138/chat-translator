@@ -13,6 +13,7 @@ import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.OptionGroup;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.EnumControllerBuilder;
+import dev.isxander.yacl3.api.controller.IntegerFieldControllerBuilder;
 import dev.isxander.yacl3.api.controller.StringControllerBuilder;
 import dev.isxander.yacl3.api.controller.TickBoxControllerBuilder;
 import net.minecraft.client.gui.screens.Screen;
@@ -140,6 +141,29 @@ public final class ChatTranslatorConfigScreen {
                                 .controller(opt -> EnumControllerBuilder.create(opt)
                                         .enumClass(CloudProvider.class)
                                         .formatValue(value -> Component.literal(value.label())))
+                                .build())
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(Component.literal("Spending limit"))
+                        .option(Option.<Integer>createBuilder()
+                                .name(Component.literal("Characters per month"))
+                                .description(OptionDescription.of(Component.literal(
+                                        "Google and Langbly include 500,000 characters a month and "
+                                                + "then bill your card automatically — they do not stop.\n"
+                                                + "Once this many characters have been sent, the mod goes "
+                                                + "back to translating on your computer for the rest of "
+                                                + "the month. Chat keeps working; you just stop paying.\n"
+                                                + "Set 0 for no limit.\n"
+                                                + "This is the mod's own estimate of what it sent. It "
+                                                + "cannot see your key used elsewhere, so treat your "
+                                                + "provider's dashboard as the real number.")))
+                                .binding(
+                                        500_000,
+                                        () -> config.monthlyCharacterBudget,
+                                        value -> config.monthlyCharacterBudget = value)
+                                .controller(opt -> IntegerFieldControllerBuilder.create(opt)
+                                        .min(0)
+                                        .max(100_000_000))
                                 .build())
                         .build())
                 .group(OptionGroup.createBuilder()

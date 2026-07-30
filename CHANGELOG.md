@@ -2,7 +2,29 @@
 
 All notable changes to Lingo. Versions follow [semantic versioning](https://semver.org/).
 
-## [1.1.4]
+## [1.1.5]
+
+### Added
+
+- **Spending limit for online services.** Google and Langbly both include 500,000
+  characters a month and then bill your card automatically — neither stops on its
+  own. Lingo now counts what it sends and, at the budget in Config (500,000 by
+  default, 0 to disable), goes back to translating on your computer for the rest of
+  the month. Chat keeps working; you stop paying. Warnings at 80% and 95%.
+- `/translate usage` — how many characters have gone to a paid service this month.
+  It counts only what this mod sent, so your provider's dashboard remains the real
+  number.
+
+### Fixed
+
+- DeepL guidance said to sign up for a free tier. DeepL closed its free monthly API
+  plan to new signups; the README, guide, and config screen now say plainly that
+  DeepL costs money.
+- DeepL's free and paid endpoints are now chosen from the key itself — older API
+  Free keys end in `:fx` — instead of relying on a checkbox that was easy to leave
+  wrong and produced only an authorization error when it was.
+- Google and Langbly were described as having a "free tier" with no mention that
+  both charge automatically once the included allowance is gone.
 
 ### Changed
 
